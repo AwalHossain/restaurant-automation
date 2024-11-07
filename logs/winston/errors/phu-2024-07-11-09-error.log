@@ -1,0 +1,127 @@
+Thu Nov 07 2024 9:18:8 } [PH] error: prism is not defined
+Thu Nov 07 2024 9:18:48 } [PH] error: prism is not defined
+Thu Nov 07 2024 9:19:15 } [PH] error: prism is not defined
+Thu Nov 07 2024 9:19:51 } [PH] error: Email or phone already exists
+Thu Nov 07 2024 9:20:16 } [PH] error: Email or phone already exists
+Thu Nov 07 2024 9:20:54 } [PH] error: Email or phone already exists
+Thu Nov 07 2024 9:25:46 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ Email or phone already exists
+Thu Nov 07 2024 9:26:23 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ 
+Invalid `prisma.user.create()` invocation in
+C:\Users\foort\Videos\university-management-core-service-starter\src\app\api\v1\admin\services\auth.service.ts:40:36
+
+  37 
+  38 const hashedPassword = await hashPassword(input.password);
+  39 
+→ 40 const user = await prisma.user.create(
+Unique constraint failed on the fields: (`username`)
+Thu Nov 07 2024 9:27:26 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ 
+Invalid `prisma.user.create()` invocation in
+C:\Users\foort\Videos\university-management-core-service-starter\src\app\api\v1\admin\services\auth.service.ts:42:36
+
+  39 console.log('hashedPassword', hashedPassword);
+  40 
+  41 
+→ 42 const user = await prisma.user.create(
+Unique constraint failed on the fields: (`username`)
+Thu Nov 07 2024 9:32:32 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ Email or phone already exists
+Thu Nov 07 2024 9:38:33 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ 
+Invalid `prisma.user.findUnique()` invocation in
+C:\Users\foort\Videos\university-management-core-service-starter\src\app\api\v1\admin\services\auth.service.ts:63:36
+
+  60 }
+  61 
+  62 async login(input: LoginAdminInput) {
+→ 63   const user = await prisma.user.findUnique({
+         where: {
+           email: undefined,
+       ?   id?: String,
+       ?   phone?: String,
+       ?   AND?: UserWhereInput | UserWhereInput[],
+       ?   OR?: UserWhereInput[],
+       ?   NOT?: UserWhereInput | UserWhereInput[],
+       ?   password?: StringNullableFilter | String | Null,
+       ?   firstName?: StringNullableFilter | String | Null,
+       ?   lastName?: StringNullableFilter | String | Null,
+       ?   username?: StringNullableFilter | String | Null,
+       ?   role?: EnumRoleFilter | Role,
+       ?   isActive?: BoolFilter | Boolean,
+       ?   isVerified?: BoolFilter | Boolean,
+       ?   otpAttempts?: IntFilter | Int,
+       ?   lastOtpSentAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   isMfaEnabled?: BoolFilter | Boolean,
+       ?   mfaSecret?: StringNullableFilter | String | Null,
+       ?   branchId?: StringNullableFilter | String | Null,
+       ?   createdAt?: DateTimeFilter | DateTime,
+       ?   updatedAt?: DateTimeFilter | DateTime,
+       ?   lastLoginAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   deletedAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   branch?: BranchNullableRelationFilter | BranchWhereInput | Null,
+       ?   loginHistory?: LoginHistoryListRelationFilter,
+       ?   refreshTokens?: RefreshTokenListRelationFilter,
+       ?   orders?: OrderListRelationFilter,
+       ?   riderOrders?: OrderListRelationFilter,
+       ?   createdFoods?: FoodListRelationFilter,
+       ?   updatedFoods?: FoodListRelationFilter,
+       ?   createdAddons?: AddonListRelationFilter,
+       ?   updatedAddons?: AddonListRelationFilter,
+       ?   cart?: CartListRelationFilter,
+       ?   notifications?: NotificationListRelationFilter,
+       ?   auditLogs?: AuditLogListRelationFilter,
+       ?   Manager?: ManagerNullableRelationFilter | ManagerWhereInput | Null,
+       ?   Address?: AddressListRelationFilter,
+       ?   Feedback?: FeedbackListRelationFilter
+         }
+       })
+
+Argument `where` of type UserWhereUniqueInput needs at least one of `id`, `email` or `phone` arguments. Available options are marked with ?.
+Thu Nov 07 2024 9:39:22 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ 
+Invalid `prisma.user.findUnique()` invocation in
+C:\Users\foort\Videos\university-management-core-service-starter\src\app\api\v1\admin\services\auth.service.ts:63:36
+
+  60 }
+  61 
+  62 async login(input: LoginAdminInput) {
+→ 63   const user = await prisma.user.findUnique({
+         where: {
+           email: undefined,
+       ?   id?: String,
+       ?   phone?: String,
+       ?   AND?: UserWhereInput | UserWhereInput[],
+       ?   OR?: UserWhereInput[],
+       ?   NOT?: UserWhereInput | UserWhereInput[],
+       ?   password?: StringNullableFilter | String | Null,
+       ?   firstName?: StringNullableFilter | String | Null,
+       ?   lastName?: StringNullableFilter | String | Null,
+       ?   username?: StringNullableFilter | String | Null,
+       ?   role?: EnumRoleFilter | Role,
+       ?   isActive?: BoolFilter | Boolean,
+       ?   isVerified?: BoolFilter | Boolean,
+       ?   otpAttempts?: IntFilter | Int,
+       ?   lastOtpSentAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   isMfaEnabled?: BoolFilter | Boolean,
+       ?   mfaSecret?: StringNullableFilter | String | Null,
+       ?   branchId?: StringNullableFilter | String | Null,
+       ?   createdAt?: DateTimeFilter | DateTime,
+       ?   updatedAt?: DateTimeFilter | DateTime,
+       ?   lastLoginAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   deletedAt?: DateTimeNullableFilter | DateTime | Null,
+       ?   branch?: BranchNullableRelationFilter | BranchWhereInput | Null,
+       ?   loginHistory?: LoginHistoryListRelationFilter,
+       ?   refreshTokens?: RefreshTokenListRelationFilter,
+       ?   orders?: OrderListRelationFilter,
+       ?   riderOrders?: OrderListRelationFilter,
+       ?   createdFoods?: FoodListRelationFilter,
+       ?   updatedFoods?: FoodListRelationFilter,
+       ?   createdAddons?: AddonListRelationFilter,
+       ?   updatedAddons?: AddonListRelationFilter,
+       ?   cart?: CartListRelationFilter,
+       ?   notifications?: NotificationListRelationFilter,
+       ?   auditLogs?: AuditLogListRelationFilter,
+       ?   Manager?: ManagerNullableRelationFilter | ManagerWhereInput | Null,
+       ?   Address?: AddressListRelationFilter,
+       ?   Feedback?: FeedbackListRelationFilter
+         }
+       })
+
+Argument `where` of type UserWhereUniqueInput needs at least one of `id`, `email` or `phone` arguments. Available options are marked with ?.
+Thu Nov 07 2024 9:40:28 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ Cannot set headers after they are sent to the client

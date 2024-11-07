@@ -1,69 +1,113 @@
-# University Management Core Service
-This guide will walk you through the process of setting up the University Management Core Service Starter project. By following these steps, you will clone the project, install dependencies, and configure Prisma for database management. Let's get started!
+# Project Documentation
 
+## Table of Contents
+- [Overview](#overview)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Authentication](#authentication)
 
-## Installation Steps
-### Follow these steps to clone and set up starter project:
+## Overview
+This is a Node.js/TypeScript backend project with multi-role authentication support (Admin, Customer, Rider) and various integrated services.
 
-1. `Clone the project:` Open your terminal or command prompt and run the following command to clone the project repository:
+## Getting Started
 
+### Prerequisites
+- Node.js >= 14.x
+- TypeScript >= 4.x
+- PostgreSQL/MySQL database
+- Redis (for caching)
+- AWS S3 (for file storage)
+
+### Installation
 ```bash
-git clone https://github.com/Programming-Hero-Next-Level-Development/university-management-core-service-starter.git university-management-core-service
+# Install dependencies
+npm install
 ```
 
-2. `Navigate into the project directory:` Use the cd command to navigate into the project directory:
+# Setup environment variables
+cp [.env.example](http://_vscodecontentref_/0) .env
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev
+
+# Start development server
+npm run dev
+
+
+
+## Project Structure
+```
+src/
+├── config/           # Configuration files
+│   ├── swagger.ts    # API documentation
+│   ├── passport/     # Authentication strategies
+│   ├── redis.ts      # Cache configuration
+│   ├── s3.ts        # AWS S3 configuration
+│   └── socket.ts    # WebSocket setup
+├── core/            # Core functionality
+│   ├── types/       # TypeScript type definitions
+│   └── interfaces/  # Interface definitions
+
+├── modules/         # Feature modules
+│   ├── auth/        # Authentication module
+│   ├── user/        # User module
+│   ├── order/       # Order module
+│   └── ...          # Other modules
+├── services/        # Integrated services
+│   ├── email/       # Email service
+│   ├── sms/         # SMS service
+│   └── ...
+├── utils/           # Utility functions
+├── app.ts           # Express app
+└── server.ts        # Server entry point
+```
+## Configuration 
+The project uses environment variables for configuration. Create a `.env` file in the root directory and add the following variables:
 
 ```bash
-cd university-management-core-service
+
+NODE_ENV=development
+PORT=3000
+DATABASE_URL=
+REDIS_URL=
+AWS_ACCESS_KEY=
+AWS_SECRET_KEY=
+AWS_BUCKET_NAME=
+JWT_SECRET=
 ```
 
-3. `Install project dependencies:` Next, install the project dependencies by running the following command:
+## Authentication
 
-```bash
-yarn install
-```
 
-4. Configure Prisma and the database connection:
+Authentication
+The system supports three types of users:
 
-- Add Prisma as a development dependency by running the following command:
-```bash
-yarn add prisma --save-dev
-```
+Admin
+Customer
+Rider
+Each user type has its own:
 
-- Set up your Prisma project by creating the Prisma schema file using the following command:
-```bash
-npx prisma init
-```
-
-- Open the prisma/schema.prisma file and configure your database connection details.
-
-```bash
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-- Create a .env file in the project root directory and set the DATABASE_URL environment variable. Replace the placeholders with your database connection details:
-```bash
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=SCHEMA"
-```
-
-5. Creating the database schema
-6. Migrate the database schema: Use the following command to create and apply the initial database schema:
-
-```bash
-npx prisma migrate dev --name init
-```
-This command creates a new migration file based on your schema changes and applies it to your database.
-
-6. `Install Prisma Client:` Install the Prisma Client library by running the following command:
-```bash
-yarn add @prisma/client
-```
-
-This command installs the Prisma Client, which provides an interface to interact with your database.
-
-That's it! You have successfully set up the University Management Core Service Starter project. You can now start exploring and working with the codebase. Refer to the project documentation or README for further instructions on how to run and use the core service.
-
-Happy coding!
+Authentication strategy
+JWT token handling
+Route middleware
+Role-based permissions
+API Documentation
+Swagger documentation available at /api-docs
+Authentication required for protected routes
+JWT token must be included in Authorization header
+Caching
+Redis is used for caching
+Session management
+Rate limiting
+File Storage
+AWS S3 for file uploads
+Supported file types: images, documents
+File size limits configured in s3.ts
+WebSocket
+Real-time communication
+Event handling for notifications
+Socket authentication middleware

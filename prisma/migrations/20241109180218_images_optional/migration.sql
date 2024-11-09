@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "CampaignImage" ALTER COLUMN "url" DROP NOT NULL,
+ALTER COLUMN "deviceType" DROP NOT NULL;

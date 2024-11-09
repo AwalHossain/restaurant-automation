@@ -1,0 +1,43 @@
+Sat Nov 09 2024 13:32:17 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ Image is required
+Sat Nov 09 2024 13:34:8 } [PH] error: 🐱‍🏍 globalErrorHandler ~~ 
+Invalid `tx.food.create()` invocation in
+C:\Users\foort\Videos\university-management-core-service-starter\src\app\api\v1\food\services\food.services.ts:11:36
+
+   8   
+   9 async createFood(input: CreateFoodInput) {
+  10   const createdFood = await prisma.$transaction(async (tx)=>{
+→ 11     const food = await tx.food.create({
+           data: {
+             description: undefined,
+             basePrice: undefined,
+             minOrderQuantity: undefined,
+             foodImages: {
+               create: [
+                 {
+                   url: "https://res.cloudinary.com/a2b/image/upload/v1731137643/food-images/crthxjgeecvg3tgwm3bd.webp",
+                   deviceType: "MOBILE",
+                   width: 640,
+                   height: 360,
+                   size: 47606
+                 },
+                 {
+                   url: "https://res.cloudinary.com/a2b/image/upload/v1731137645/food-images/khceoqhlif1ohf86bugf.webp",
+                   deviceType: "TABLET",
+                   width: 1024,
+                   height: 576,
+                   size: 92748
+                 },
+                 {
+                   url: "https://res.cloudinary.com/a2b/image/upload/v1731137647/food-images/kt0jbaopypj1yfbepljy.webp",
+                   deviceType: "DESKTOP",
+                   width: 1920,
+                   height: 1080,
+                   size: 181080
+                 }
+               ]
+             },
+         +   name: String
+           }
+         })
+
+Argument `name` is missing.

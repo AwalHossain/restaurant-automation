@@ -35,6 +35,9 @@ const envSchema = z.object({
   MFA_ISSUER: z.string(),
   MFA_ALGORITHM: z.string(),
   MFA_WINDOW: z.coerce.number().default(0),
+  CLOUDINARY_CLOUD_NAME: z.string(),
+  CLOUDINARY_API_KEY: z.string(),
+  CLOUDINARY_API_SECRET: z.string(),
 });
 
 const env = envSchema.parse(process.env);

@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 // import httpStatus from 'http-status';
+import bodyParser from 'body-parser';
 import routes from './app/routes';
 
 import cookieParser from 'cookie-parser';
@@ -14,6 +15,7 @@ app.use(cookieParser());
 //parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 app.use('/api/v1', routes);
 

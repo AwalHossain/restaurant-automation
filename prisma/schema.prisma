@@ -20,7 +20,7 @@ model User {
   password      String?
   firstName     String?
   lastName      String?
-  username      String?   
+  username      String?
   role          Role      @default(CUSTOMER)
   isActive      Boolean   @default(true)
   isVerified    Boolean   @default(false)
@@ -57,6 +57,8 @@ model User {
   Manager       Manager?
   Address       Address[]
   Feedback      Feedback[]
+
+  updatedRestaurantSettings RestaurantSettings[] @relation("RestaurantSettingsUpdater")
 
   @@index([phone, isActive])
   @@index([email, isActive])
@@ -114,14 +116,14 @@ model Branch {
   updatedAt           DateTime        @updatedAt
   isActive            Boolean         @default(true)
   // Relations with managers and orders
-  foods               BranchFood[]
+  foods               Food[] @relation("BranchFood")
   managers            Manager[]
   orders              Order[]
-  openingTime         String? // Store in 24-hour format
-  closingTime         String?
   phoneNumber         String?
   email               String?
-  coordinates         String? // Store latitude,longitude
+  // coordinates         String? // Store latitude,longitude
+  latitude            String?
+  longitude           String?
   deliveryRadius      Decimal?        @db.Decimal(10, 2) // in kilometers
   isDeliveryAvailable Boolean         @default(true)
   isTakeawayAvailable Boolean         @default(true)
@@ -132,6 +134,18 @@ model Branch {
   BusinessHours       BusinessHours[]
   Cart                Cart[]
   Promotion           Promotion[]
+}
+
+model BusinessHours {
+  id          String  @id @default(cuid())
+  branchId    String
+  branch      Branch  @relation(fields: [branchId], references: [id])
+  dayOfWeek   String // 0-6 (Sunday-Saturday)
+  openingTime String // 24-hour format
+  closingTime String // 24-hour format
+  isClosed    Boolean @default(false)
+
+  @@unique([branchId, dayOfWeek])
 }
 
 model Manager {
@@ -162,50 +176,147 @@ model Food {
   name          String
   description   String?
   basePrice     Decimal        @db.Decimal(10, 2)
-  image         String?
-  isPopular     Boolean        @default(false)
-  isRecommended Boolean        @default(false)
-  isNewArrival  Boolean        @default(false)
+  foodImages    FoodImage[]
+  isPopular     Boolean?       @default(false)
+  isRecommended Boolean?       @default(false)
+  isNewArrival  Boolean?       @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   isActive      Boolean        @default(true)
   categories    Category[]
   variants      FoodVariant[]
   addons        FoodAddon[]
-  branches      BranchFood[] // Many-to-many with branches
-  createdBy     User           @relation("FoodCreator", fields: [createdById], references: [id])
-  createdById   String
-  updatedBy     User           @relation("FoodUpdater", fields: [updatedById], references: [id])
-  updatedById   String
+  branches      Branch[] @relation("BranchFood")
+  createdBy     User?          @relation("FoodCreator", fields: [createdById], references: [id])
+  createdById   String?
+  updatedBy     User?          @relation("FoodUpdater", fields: [updatedById], references: [id])
+  updatedById   String?
   priceHistory  PriceHistory[]
 
   cartItems CartItem[]
   deletedAt DateTime? // Soft delete
   OrderItem OrderItem[]
 
+  minOrderQuantity   Int?      @default(1)
+  freeDelivery       Boolean?  @default(false)
+  specialDeliveryFee Boolean?  @default(false)
+  haveDiscount       Boolean?  @default(false)
+  discountedPrice    Decimal?  @db.Decimal(10, 2)
+  offer              String?
+  topSnacks          Boolean?  @default(false)
+  dynamicHome        Boolean?  @default(false)
+  trending           Boolean?  @default(false)
+  isFree             Boolean?  @default(false)
+  isFeatured         Boolean?  @default(false)
+  expiryDate         DateTime?
+  availableStartTime String? // Store as 24h format
+  availableEndTime   String? // Store as 24h format
+  trendingStartTime  String? // Store as 24h format
+  trendingEndTime    String? // Store as 24h format
+  isDefaultImage     Boolean?  @default(false)
+  campaignId         String?
+  campaign           Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([topSnacks])
+  @@index([trending])
+  @@index([dynamicHome])
+  @@index([isFeatured])
   @@index([isActive, isPopular])
   @@index([isActive, isRecommended])
   @@index([isActive, isNewArrival])
 }
 
-model BranchFood {
-  id          String   @id @default(cuid())
-  branchId    String
-  foodId      String
-  isAvailable Boolean  @default(true)
-  customPrice Decimal? @db.Decimal(10, 2) // Override base price for this branch
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  food        Food     @relation(fields: [foodId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model FoodImage {
+  id         String     @id @default(cuid())
+  foodId     String
+  food       Food       @relation(fields: [foodId], references: [id])
+  url        String
+  deviceType DeviceType
+  width      Int
+  height     Int
+  size       Int // in bytes
+  createdAt  DateTime   @default(now())
 
-  @@unique([branchId, foodId])
+  @@unique([foodId, deviceType])
+}
+
+enum DeviceType {
+  MOBILE
+  TABLET
+  DESKTOP
+}
+
+enum FoodStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// model BranchFood {
+//   id          String   @id @default(cuid())
+//   branchId    String
+//   foodId      String
+//   isAvailable Boolean  @default(true)
+//   customPrice Decimal? @db.Decimal(10, 2) // Override base price for this branch
+//   branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+//   food        Food     @relation(fields: [foodId], references: [id])
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+
+//   @@unique([branchId, foodId])
+// }
+
+// New model needed
+model Campaign {
+  id                 String          @id @default(cuid())
+  name               String
+  description        String?
+  startDate          DateTime
+  endDate            DateTime
+  isActive           Boolean         @default(true)
+  type               CampaignType
+  discountPercentage Decimal?        @db.Decimal(5, 2)
+  images             CampaignImage[]
+  priority           Int             @default(0)
+  targetAudience     Json? // Audience targeting info
+  budget             Decimal?        @db.Decimal(10, 2)
+  displayLocation    String? // Location on the site (e.g., homepage, menu page)
+  redemptionLimit    Int? // Maximum redemptions allowed
+  conditions         Json? // Campaign-specific rules (e.g., "minOrderAmount": 20)
+  promoCode          String? // Promo code for the campaign
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  foods              Food[]
+}
+
+model CampaignImage {
+  id         String     @id @default(cuid())
+  campaignId String
+  campaign   Campaign   @relation(fields: [campaignId], references: [id])
+  url        String?
+  width      Int
+  height     Int
+  size       Int
+  deviceType DeviceType?
+}
+
+enum CampaignType {
+  SEASONAL // e.g., Summer, Winter
+  FESTIVAL // e.g., Ramadan, Christmas
+  HAPPY_HOUR // Discount during specific hours
+  WEEKEND_SPECIAL // Available only on weekends
+  NEW_MENU_ITEM // Promoting a new dish or menu
+  BOGO // "Buy One Get One" offers
+  LOYALTY_REWARD // Targeted to loyal or repeat customers
+  HOLIDAY // e.g., Christmas, Valentine’s Day specials
+  FAMILY_PACKAGE // Special packages for families or groups
+  DELIVERY_ONLY // Discounts for delivery orders only
+  IN_STORE_ONLY // Discounts for dine-in customers
 }
 
 model FoodVariant {
   id           String         @id @default(cuid())
   name         String
-  price        Decimal        @db.Decimal(10, 2)
+  basePrice    Decimal        @db.Decimal(10, 2)
   foodId       String
   food         Food           @relation(fields: [foodId], references: [id])
   isActive     Boolean        @default(true)
@@ -361,6 +472,13 @@ model Restaurant {
   name               String
   domain             String              @unique
   logo               String?
+  address            String?
+  description        String?
+  socialMediaLinks   Json?
+  ratings            Decimal?            @db.Decimal(3, 2) // Average rating
+  deliveryAreas      Json? // Delivery zones (geospatial data)
+  openDate           DateTime?
+  featured           Boolean             @default(false)
   branches           Branch[]
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
@@ -369,44 +487,40 @@ model Restaurant {
 }
 
 model RestaurantSettings {
-  id                String     @id @default(cuid())
-  restaurantId      String     @unique
-  restaurant        Restaurant @relation(fields: [restaurantId], references: [id])
-  currency          String     @default("BDT")
-  timezone          String     @default("Asia/Dhaka")
-  orderNumberPrefix String?
-  minOrderAmount    Decimal?   @db.Decimal(10, 2)
-  maxOrderAmount    Decimal?   @db.Decimal(10, 2)
-  deliveryFee       Decimal?   @db.Decimal(10, 2)
-  taxPercentage     Decimal?   @db.Decimal(10, 2)
-
-  // Notification settings
-  smsNotifications   Boolean @default(true)
-  emailNotifications Boolean @default(true)
-
-  // Error notification settings
-  errorNotificationEmail String?
-  notifyOnCriticalErrors Boolean @default(true)
-
-  // Feedback settings
-  autoResponseEnabled   Boolean @default(false)
-  feedbackResponseDelay Int     @default(24) // hours
-  // Auto-assignment settings
-  autoAssignRiders      Boolean @default(false)
-
-  updatedAt DateTime @updatedAt
+  id                      String          @id @default(cuid())
+  restaurantId            String          @unique
+  restaurant              Restaurant      @relation(fields: [restaurantId], references: [id])
+  currency                String          @default("BDT")
+  currencySymbol          String? // Currency symbol
+  timezone                String          @default("Asia/Dhaka")
+  orderNumberPrefix       String?
+  minOrderAmount          Decimal?        @db.Decimal(10, 2)
+  maxOrderAmount          Decimal?        @db.Decimal(10, 2)
+  deliveryFee             Decimal?        @db.Decimal(10, 2)
+  taxPercentage           Decimal?        @db.Decimal(10, 2)
+  paymentMethods          Json? // List of supported payment methods
+  deliveryTimeEstimate    Int? // Estimated delivery time in minutes
+  customerSupportEmail    String?
+  restaurantType          restaurantType? // E.g., "Fast Food", "Fine Dining"
+  serviceChargePercentage Decimal?        @db.Decimal(5, 2)
+  acceptsPreorders        Boolean         @default(false)
+  autoAssignRiders        Boolean         @default(false)
+  smsNotifications        Boolean         @default(true)
+  emailNotifications      Boolean         @default(true)
+  errorNotificationEmail  String?
+  notifyOnCriticalErrors  Boolean         @default(true)
+  autoResponseEnabled     Boolean         @default(false)
+  feedbackResponseDelay   Int             @default(24) // hours
+  lastUpdatedBy           User?           @relation("RestaurantSettingsUpdater", fields: [lastUpdatedById], references: [id])
+  lastUpdatedById         String?
+  timezoneOffset          Int? // Numeric offset for timezone
+  updatedAt               DateTime        @updatedAt
 }
 
-model BusinessHours {
-  id        String  @id @default(cuid())
-  branchId  String
-  branch    Branch  @relation(fields: [branchId], references: [id])
-  dayOfWeek Int // 0-6 (Sunday-Saturday)
-  openTime  String // 24-hour format
-  closeTime String // 24-hour format
-  isClosed  Boolean @default(false)
-
-  @@unique([branchId, dayOfWeek])
+enum restaurantType {
+  FAST_FOOD
+  FINE_DINING
+  CAFE
 }
 
 model Cart {

@@ -6,6 +6,7 @@ import routes from './app/routes';
 
 import cookieParser from 'cookie-parser';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
+import { prisma } from './shared/prisma';
 
 const app: Application = express();
 
@@ -16,6 +17,29 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// health check
+app.get('/health', async(req: Request, res: Response) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.json({
+      status: 'ok',
+      timestamp: new Date(),
+      service: 'university-management-core-service',
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date(),
+      service: 'university-management-core-service',
+      database: 'disconnected',
+      error: (error as any).message as string
+    });
+  }
+});
 
 app.use('/api/v1', routes);
 

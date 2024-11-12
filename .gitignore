@@ -1,10 +1,42 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment files
 .env
+.env.*
 
-logs
-logs/** 
-
-dist
-
-.logs
+# Log files
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Log directories and their contents
+**/logs/
+**/logs/**/*
+
+# JSON log files specifically
+*.log.json
+logs/**/*.json
+./* */.json# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+*-audit.json
+**/*-audit.json
+*.gz
+**/*.log.*
+
+# Build output
+dist/
+
+# IDE files
+.vscode/
+.idea/

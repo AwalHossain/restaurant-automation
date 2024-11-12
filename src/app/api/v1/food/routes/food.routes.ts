@@ -28,6 +28,7 @@ router.get('/all', foodController.getAllFoods);
 router.post('/category/create', categoryController.createCategory);
 router.get('/category/all', categoryController.getAllCategories);
 router.get('/category/:id', categoryController.getCategoryWithChildren);
+router.get('/:id', foodController.getFoodById);
 
 // router.patch('/foods/:foodId/status', foodController.updateStatus);
 // router.patch('/foods/:foodId/price', foodController.updatePrice);

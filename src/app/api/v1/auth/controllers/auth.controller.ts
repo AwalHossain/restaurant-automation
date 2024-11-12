@@ -6,8 +6,11 @@ import { AdminAuthService } from '../services/auth.service';
 
 const authService = new AdminAuthService();
 
-export class AdminAuthController {
-  register = catchAsync(async (req: Request, res: Response) => {
+export class AuthController {
+
+
+
+  userRegister = catchAsync(async (req: Request, res: Response) => {
     const {user,accessToken,refreshToken} = await authService.register(req.body);
 
      // Set cookies
@@ -31,7 +34,7 @@ export class AdminAuthController {
     });
   });
 
-  login = catchAsync(async (req: Request, res: Response) => {
+  userLogin = catchAsync(async (req: Request, res: Response) => {
     const { user, accessToken, refreshToken } = await authService.login(req.body);
 
     // Set cookies

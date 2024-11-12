@@ -63,4 +63,15 @@ export class FoodController {
         })
     });
 
+    getFoodById = catchAsync(async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const result = await this.foodService.getFoodById(id);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: 'Food fetched successfully',
+            data: result
+        })
+    });
+
 }

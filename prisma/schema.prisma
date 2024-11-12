@@ -116,7 +116,7 @@ model Branch {
   updatedAt           DateTime        @updatedAt
   isActive            Boolean         @default(true)
   // Relations with managers and orders
-  foods               Food[] @relation("BranchFood")
+  foods               Food[]          @relation("BranchFood")
   managers            Manager[]
   orders              Order[]
   phoneNumber         String?
@@ -186,7 +186,7 @@ model Food {
   categories    Category[]
   variants      FoodVariant[]
   addons        FoodAddon[]
-  branches      Branch[] @relation("BranchFood")
+  branches      Branch[]       @relation("BranchFood")
   createdBy     User?          @relation("FoodCreator", fields: [createdById], references: [id])
   createdById   String?
   updatedBy     User?          @relation("FoodUpdater", fields: [updatedById], references: [id])
@@ -289,9 +289,9 @@ model Campaign {
 }
 
 model CampaignImage {
-  id         String     @id @default(cuid())
+  id         String      @id @default(cuid())
   campaignId String
-  campaign   Campaign   @relation(fields: [campaignId], references: [id])
+  campaign   Campaign    @relation(fields: [campaignId], references: [id])
   url        String?
   width      Int
   height     Int
@@ -317,6 +317,7 @@ model FoodVariant {
   id           String         @id @default(cuid())
   name         String
   basePrice    Decimal        @db.Decimal(10, 2)
+  isRequired   Boolean        @default(false)
   foodId       String
   food         Food           @relation(fields: [foodId], references: [id])
   isActive     Boolean        @default(true)
@@ -328,35 +329,62 @@ model FoodVariant {
 }
 
 model Addon {
-  id             String           @id @default(cuid())
-  name           String
-  price          Decimal          @db.Decimal(10, 2)
-  description    String?
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  foods          FoodAddon[]
-  createdBy      User             @relation("AddonCreator", fields: [createdById], references: [id])
-  createdById    String
-  updatedBy      User             @relation("AddonUpdater", fields: [updatedById], references: [id])
-  updatedById    String
-  priceHistory   PriceHistory[]
-  OrderItemAddon OrderItemAddon[]
-  CartItemAddon  CartItemAddon[]
+  id              String           @id @default(cuid())
+  name            String
+  price           Decimal          @db.Decimal(10, 2)
+  description     String?
+  isActive        Boolean          @default(true)
+  image           String?
+  preparationTime Int?
+  allergens       String[]
+  nutritionInfo   Json?
+  category        AddonCategory?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  foods           FoodAddon[]
+  createdBy       User             @relation("AddonCreator", fields: [createdById], references: [id])
+  createdById     String
+  updatedBy       User             @relation("AddonUpdater", fields: [updatedById], references: [id])
+  updatedById     String
+  priceHistory    PriceHistory[]
+  OrderItemAddon  OrderItemAddon[]
+  CartItemAddon   CartItemAddon[]
+}
+
+enum AddonCategory {
+  TOPPING
+  SAUCE
+  SIDE
+  DRINK
+  EXTRA
 }
 
 model FoodAddon {
-  id          String   @id @default(cuid())
-  foodId      String
-  addonId     String
-  isRequired  Boolean  @default(false)
-  maxQuantity Int      @default(1)
-  food        Food     @relation(fields: [foodId], references: [id])
-  addon       Addon    @relation(fields: [addonId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String  @id @default(cuid())
+  foodId          String
+  addonId         String
+  isRequired      Boolean @default(false)
+  maxQuantity     Int     @default(1)
+  minQuantity     Int     @default(1)
+  defaultQuantity Int     @default(1)
+  displayOrder    Int     @default(0)
+  food            Food    @relation(fields: [foodId], references: [id])
+  addon           Addon   @relation(fields: [addonId], references: [id])
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  AddonGroup   AddonGroup? @relation(fields: [addonGroupId], references: [id])
+  addonGroupId String?
 
   @@unique([foodId, addonId])
+}
+
+model AddonGroup {
+  id                   String      @id @default(cuid())
+  name                 String
+  isRequired           Boolean     @default(false)
+  maxSelectionsAllowed Int         @default(1)
+  foodAddons           FoodAddon[]
 }
 
 model PriceHistory {

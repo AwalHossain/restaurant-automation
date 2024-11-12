@@ -1,5 +1,5 @@
 import express from 'express';
-import { AdminAuthRoutes } from '../api/v1/admin/routes/auth.routes';
+import { AdminAuthRoutes } from '../api/v1/authentication/routes/auth.routes';
 import { campaignRoutes } from '../api/v1/campaign/routes/campaign.routes';
 import { FoodRoutes } from '../api/v1/food/routes/food.routes';
 import { RestaurantRoutes } from '../api/v1/restaurant/routes/restaurant.routes';

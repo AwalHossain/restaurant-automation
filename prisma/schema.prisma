@@ -20,7 +20,7 @@ model User {
   password      String?
   firstName     String?
   lastName      String?
-  username      String?
+  username      String?   @unique
   role          Role      @default(CUSTOMER)
   isActive      Boolean   @default(true)
   isVerified    Boolean   @default(false)
@@ -62,7 +62,16 @@ model User {
 
   @@index([phone, isActive])
   @@index([email, isActive])
+  @@index([username, isActive])
   @@map("users")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  used      Boolean  @default(false)
+  expiresAt DateTime
 }
 
 enum Role {

@@ -68,6 +68,9 @@ export class AdminAuthService {
       throw new ApiError(401, 'Invalid credentials');
     }
 
+    if (!user.password) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
     const isPasswordValid = await comparePassword(input.password, user.password);
     if (!isPasswordValid) {
       throw new ApiError(401, 'Invalid credentials');

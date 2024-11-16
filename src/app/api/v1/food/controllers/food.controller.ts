@@ -21,11 +21,10 @@ export class FoodController {
         if(!file) throw new ApiError(400, 'Image is required');
         const images = await this.imageService.uploadFoodImage(file);
         const { body } = req;
-        console.log(body, 'body');
         const data = JSON.parse(body.data);
-        console.log(data, 'data');
-        const result = await this.foodService.createFood({...data, images});
-        console.log(result, 'result');
+        const {userId} = req.user as { userId: string };
+        const result = await this.foodService.createFood({...data, images, userId});
+        
         return res.status(201).json({
             success: true,
             message: "Food created successfully",
@@ -44,7 +43,8 @@ export class FoodController {
     updateFoodDetails = catchAsync(async (req: Request, res: Response) => {
         const { id } = req.params;
         const { body } = req;
-        const result = await this.foodService.updateFoodDetails({...body, id});
+        const { userId } = req.user as { userId: string };
+        const result = await this.foodService.updateFoodDetails({...body, id, userId});
         sendResponse(res, {
             statusCode: httpStatus.OK,
             success: true,
@@ -73,5 +73,28 @@ export class FoodController {
             data: result
         })
     });
+
+    getFoodByMainCategoryId = catchAsync(async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const result = await this.foodService.getFoodByMainCategoryId(id);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: 'Food fetched successfully',
+            data: result
+        })
+    })
+
+    getFoodBySubCategoryId = catchAsync(async (req: Request, res: Response) => {
+        const { id } = req.params;
+        console.log(id, 'subcategory');
+        const result = await this.foodService.getFoodBySubCategoryId(id);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: 'Food fetched successfully',
+            data: result
+        })
+    })
 
 }

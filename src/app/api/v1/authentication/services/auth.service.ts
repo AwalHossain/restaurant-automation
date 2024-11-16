@@ -72,27 +72,31 @@ export class AuthService {
 
   // Step 2: Verify OTP
   async verifyOTP(phone: string, otp: string) {
-    // First check if there's an OTP record regardless of attempts
-
-  // Then check for valid OTP
-  const activeOTP = await prisma.oTP.findFirst({
-    where: {
-      phone: phone,
-      expiresAt: {
-        gt: new Date()
-      },
-      used: false
-    }
-  });
-
-  console.log(activeOTP, "activeOTP");
-
-
-  if (activeOTP) {
-    // Increment attempt count for specific OTP
-    await prisma.oTP.update({
+    // First find the latest active OTP for this phone
+    const latestOTP = await prisma.oTP.findFirst({
       where: {
-        id: activeOTP.id
+        phone: phone,
+        expiresAt: {
+          gt: new Date()
+        },
+        used: false
+      },
+    });
+  
+    // If no active OTP exists
+    if (!latestOTP) {
+      throw new ApiError(400, 'No active OTP found');
+    }
+  
+    // Check if max attempts reached
+    if (latestOTP.otpAttempts >= 3 && latestOTP.expiresAt < new Date()) {
+      throw new ApiError(429, 'Maximum attempts reached. Please request a new OTP');
+    }
+  
+    // Increment the attempt counter
+    const updatedOTP = await prisma.oTP.update({
+      where: {
+        id: latestOTP.id
       },
       data: {
         otpAttempts: {
@@ -100,26 +104,24 @@ export class AuthService {
         }
       }
     });
-
-    // Check if max attempts reached after increment
-    if (activeOTP.otpAttempts >= 2) { // 2 because we just incremented
-      throw new ApiError(429, 'Maximum attempts reached. Please request a new OTP');
-    }
-  }
   
-  if(activeOTP){
-    // Mark OTP as used
+    // Check if OTP matches
+    if (latestOTP.code !== otp) {
+      throw new ApiError(400, 'Invalid OTP');
+    }
+  
+    // If OTP matches, mark as used
     await prisma.oTP.update({
-      where: { id: activeOTP?.id },
-      data: { used: true }
-      });
-
+      where: {
+        id: latestOTP.id
+      },
+      data: {
+        used: true
+      }
+    });
+  
     return true;
   }
-
-  throw new ApiError(400, 'Invalid or expired OTP');
-
-}
   // Step 3: Complete user registration
   async completeRegistration(input: RegisterUserInput) {
     const hashedPassword = await hashPassword(input.password!);

@@ -174,38 +174,39 @@ async userLogin(input: LoginUserInput) {
   };
 }
 
-  async login(input: LoginUserInput) {
-    const user = await prisma.user.findUnique({
-      where: { phone: input.phone }
-    });
+  // async login(input: LoginUserInput) {
+  //   const user = await prisma.user.findUnique({
+  //     where: { phone: input.phone }
+  //   });
+    
 
-    if (!user || user.role !== Role.ADMIN) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
+  //   // if (!user || (user.role !== Role.ADMIN ||  user.role !== Role.SUPER_ADMIN ||  user.role || Role.MANAGER)) {
+  //   //   throw new ApiError(401, 'Invalid role doesn\'t match');
+  //   // }
 
-    const isPasswordValid = await comparePassword(input.password, user.password!);
-    if (!isPasswordValid) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
+  //   const isPasswordValid = await comparePassword(input.password, user.password!);
+  //   if (!isPasswordValid) {
+  //     throw new ApiError(401, 'Invalid credentials');
+  //   }
 
-    const accessToken = JwtUtils.generateAccessToken({ userId: user.id, role: user.role });
-    const refreshToken = JwtUtils.generateRefreshToken({ userId: user.id, role: user.role });
+  //   const accessToken = JwtUtils.generateAccessToken({ userId: user.id, role: user.role });
+  //   const refreshToken = JwtUtils.generateRefreshToken({ userId: user.id, role: user.role });
 
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-      }
-    });
+  //   await prisma.refreshToken.create({
+  //     data: {
+  //       token: refreshToken,
+  //       userId: user.id,
+  //       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  //     }
+  //   });
 
-    const { password, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      accessToken,
-      refreshToken
-    };
-  }
+  //   const { password, ...userWithoutPassword } = user;
+  //   return {
+  //     user: userWithoutPassword,
+  //     accessToken,
+  //     refreshToken
+  //   };
+  // }
 
   // Admin registration
   async adminRegister(input: AdminRegisterInput) {

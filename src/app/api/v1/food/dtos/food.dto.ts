@@ -43,6 +43,7 @@ export type CreateFoodInput = {
   variants?: CreateFoodVariantInput[];
   addonGroups?: CreateFoodAddonGroupInput[];
   isVariantRequired?: boolean;
+  createdById: string;
 }
 
 

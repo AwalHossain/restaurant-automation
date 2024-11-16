@@ -41,6 +41,7 @@ model User {
 
   createdFoods Food[] @relation("FoodCreator")
   updatedFoods Food[] @relation("FoodUpdater")
+  deletedAddons Addon[] @relation("AddonDeleter")
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -70,6 +71,8 @@ model OTP {
   id        String   @id @default(cuid())
   phone     String
   code      String
+  otpAttempts   Int       @default(0)
+  lastOtpSentAt DateTime?
   used      Boolean  @default(false)
   expiresAt DateTime
 }
@@ -343,7 +346,8 @@ model Addon {
   price           Decimal          @db.Decimal(10, 2)
   description     String?
   isActive        Boolean          @default(true)
-  image           String?
+  imageUrl        String?
+  imageSize       Int?
   preparationTime Int?
   allergens       String[]
   nutritionInfo   Json?
@@ -355,6 +359,9 @@ model Addon {
   createdById     String
   updatedBy       User             @relation("AddonUpdater", fields: [updatedById], references: [id])
   updatedById     String
+  deletedBy       User?            @relation("AddonDeleter", fields: [deletedById], references: [id])
+  deletedById     String?
+  deletedAt       DateTime?
   priceHistory    PriceHistory[]
   OrderItemAddon  OrderItemAddon[]
   CartItemAddon   CartItemAddon[]

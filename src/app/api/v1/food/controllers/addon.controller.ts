@@ -26,4 +26,31 @@ export class AddonController {
             data: result
         });
     });
+
+    getAddOns = catchAsync(async (req: Request, res: Response) => {
+        const result = await this.addOnService.getAddOns();
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: "Addons fetched successfully",
+            data: result,
+        });
+    });
+
+    getAddOnById = catchAsync(async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const result = await this.addOnService.getAddOnById(id);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: "Addon fetched successfully",
+            data: result,
+        });
+    });
+
+    updateAddOn = catchAsync(async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const { body } = req;
+        const result = await this.addOnService.updateAddOn(id, body);
+    });
 }

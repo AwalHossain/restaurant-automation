@@ -10,7 +10,7 @@ export class JwtUtils {
 
     private static readonly ACCESS_TOKEN_SECRET = env.JWT_SECRET;
     private static readonly ACCESS_TOKEN_EXPIRES_IN = env.JWT_EXPIRES_IN;
-    private static readonly REFRESH_TOKEN_SECRET = env.JWT_REFRESH_SECRET;
+    private static readonly REFRESH_TOKEN_SECRET = env.JWT_SECRET;
     private static readonly REFRESH_TOKEN_EXPIRES_IN = env.JWT_REFRESH_EXPIRES_IN;
 
     static generateAccessToken(payload: TokenPayload): string {

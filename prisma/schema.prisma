@@ -51,6 +51,9 @@ model User {
   createdAddons Addon[] @relation("AddonCreator") // Changed from Addon
   updatedAddons Addon[] @relation("AddonUpdater") // Changed from Addon
 
+  createdAddonGroups AddonGroup[] @relation("AddonGroupCreator")
+  updatedAddonGroups AddonGroup[] @relation("AddonGroupUpdater")
+
   cart          Cart[]
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -384,7 +387,7 @@ model FoodAddon {
   minQuantity     Int     @default(1)
   defaultQuantity Int     @default(1)
   displayOrder    Int     @default(0)
-  food            Food    @relation(fields: [foodId], references: [id])
+  food            Food?    @relation(fields: [foodId], references: [id])
   addon           Addon   @relation(fields: [addonId], references: [id])
 
   createdAt    DateTime    @default(now())
@@ -400,7 +403,13 @@ model AddonGroup {
   name                 String
   isRequired           Boolean     @default(false)
   maxSelectionsAllowed Int         @default(1)
+  description          String?
   foodAddons           FoodAddon[]
+
+  createdBy            User        @relation("AddonGroupCreator", fields: [createdById], references: [id])
+  createdById          String
+  updatedBy            User        @relation("AddonGroupUpdater", fields: [updatedById], references: [id])
+  updatedById          String
 }
 
 model PriceHistory {

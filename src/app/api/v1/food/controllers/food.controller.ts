@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import ApiError from "../../../../../errors/ApiError";
-import { ImageService } from "../../../../../services/image.services";
+import { ImageService } from "../../../../../services/foodImage.services";
 import catchAsync from "../../../../../shared/catchAsync";
 import sendResponse from "../../../../../shared/sendResponse";
 import { FoodService } from "../services/food.services";

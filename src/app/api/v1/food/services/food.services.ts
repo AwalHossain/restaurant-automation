@@ -1,6 +1,6 @@
 import { prisma } from "../../../../../shared/prisma";
 import { CreateFoodInput } from "../dtos/food.dto";
-import { FoodValidationService } from "./food-validation.service";
+import { FoodValidationService } from "../validation/food-validation.service";
 
 
 
@@ -39,11 +39,6 @@ export class FoodService {
           // Connect categories
           categories: {
             connect: input?.categoryIds?.map(id => ({ id }))
-          },
-
-          // Connect branches
-          branches: {
-            connect: input?.branchIds?.map(id => ({ id }))
           },
 
           // Create variants if present

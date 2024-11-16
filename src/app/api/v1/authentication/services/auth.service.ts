@@ -27,55 +27,99 @@ export class AuthService {
       throw new ApiError(400, 'Phone number already registered, please login');
     }
 
-    // Generate OTP
-    const otp = generateOTP(); // Implement this helper function
-
-    // Store OTP in database with expiration
-    await prisma.oTP.create({
-      data:{
-        phone: phone,
-        code: otp,
-        expiresAt: new Date(Date.now() + 2 * 60 * 1000) // 2 minutes
+    const recentOtp = await prisma.oTP.count({
+      where: { phone: phone,
+        expiresAt: {
+          gt: new Date(Date.now() - 5 * 60 * 1000)
+        },
       }
     })
 
-    // Send OTP via SMS
-    // await sendSMS(phoneNumber, `Your OTP is: ${otp}`);
+    if(recentOtp >= 3){
+      throw new ApiError(400, 'Too many OTP requests, please try after 5 minutes');
+    }
 
-    return otp;
+    // invalidate any existing OTP
+ const invalidated = await prisma.oTP.updateMany({
+      where: { phone: phone,
+        used: false
+      },
+      data: { used: true },
+      
+    })
+    console.log(invalidated, "invalidated");
+
+
+
+    // Generate OTP
+    const otp = generateOTP(); // Implement this helper function
+
+
+    // Send OTP via SMS
+  //  const data = await sendSMS(phone, `Your OTP is: ${otp} and it will expire in 2 minutes`);
+  //       // Store OTP in database with expiration
+        if(otp){
+        await prisma.oTP.create({
+      data:{
+        phone: phone,
+        code: otp,
+        expiresAt: new Date(Date.now() + 2 * 60 * 1000), // 2 minutes
+        }
+      })
+    }
+    return `Your OTP is ${otp} and it will expire in 2 minutes`;
   }
 
   // Step 2: Verify OTP
   async verifyOTP(phone: string, otp: string) {
-    // Implement OTP verification logic here
-    // You can use the OTP model to check if the OTP is valid and not expired
-    // Return true if OTP is valid, false otherwise
-    const otpRecord = await prisma.oTP.findFirst({
+    // First check if there's an OTP record regardless of attempts
+
+  // Then check for valid OTP
+  const activeOTP = await prisma.oTP.findFirst({
+    where: {
+      phone: phone,
+      expiresAt: {
+        gt: new Date()
+      },
+      used: false
+    }
+  });
+
+  console.log(activeOTP, "activeOTP");
+
+
+  if (activeOTP) {
+    // Increment attempt count for specific OTP
+    await prisma.oTP.update({
       where: {
-        phone: phone,
-        code: otp,
-        expiresAt: {
-          gt: new Date()
-        },
-        used: false
+        id: activeOTP.id
+      },
+      data: {
+        otpAttempts: {
+          increment: 1
+        }
       }
     });
 
-    console.log(otpRecord, "otpRecord");
-
-    if (!otpRecord) {
-      throw new ApiError(400, 'Invalid or expired OTP');
+    // Check if max attempts reached after increment
+    if (activeOTP.otpAttempts >= 2) { // 2 because we just incremented
+      throw new ApiError(429, 'Maximum attempts reached. Please request a new OTP');
     }
-
+  }
+  
+  if(activeOTP){
     // Mark OTP as used
     await prisma.oTP.update({
-      where: { id: otpRecord.id },
+      where: { id: activeOTP?.id },
       data: { used: true }
-    });
+      });
 
     return true;
   }
 
+  throw new ApiError(400, 'Invalid or expired OTP');
+
+}
   // Step 3: Complete user registration
   async completeRegistration(input: RegisterUserInput) {
     const hashedPassword = await hashPassword(input.password!);

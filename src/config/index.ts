@@ -38,6 +38,10 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string(),
   CLOUDINARY_API_KEY: z.string(),
   CLOUDINARY_API_SECRET: z.string(),
+  AUTH_SMS_SERVICE_AUTH_TOKEN: z.string(),
+  AUTH_SMS_SERVICE_SENDER_ID: z.string(),
+  AUTH_SMS_SERVICE_BASE_URL: z.string(),
+  
 });
 
 const env = envSchema.parse(process.env);

@@ -15,13 +15,6 @@ export interface CreateAddonInput {
     updatedById: string;
   }
   
-  export interface CreateAddonGroupInput {
-    name: string;
-    isRequired: boolean;
-    maxSelectionsAllowed: number;
-    addons: CreateAddonInput[];
-  }
-
 
   export interface UpdateAddonInput {
     name?: string;
@@ -38,4 +31,32 @@ export interface CreateAddonInput {
     isDeleted?: boolean;
     deletedById?: string;
     deletedAt?: Date;
+  }
+
+  interface AddonGroupInput {
+    addonId: string;
+    minQuantity: number;
+    maxQuantity: number;
+    defaultQuantity: number;
+    displayOrder: number;
+  }
+
+
+  export interface CreateAddonGroupInput {
+    name: string;
+    isRequired: boolean;
+    maxSelectionsAllowed: number;
+    description?: string;
+    createdById?: string;
+    updatedById?: string;
+    addons: AddonGroupInput[];
+  }
+  
+  export interface UpdateAddonGroupInput {
+    name?: string;
+    isRequired?: boolean;
+    maxSelectionsAllowed?: number;
+    description?: string;
+    updatedById?: string;
+    addons?: AddonGroupInput[];
   }

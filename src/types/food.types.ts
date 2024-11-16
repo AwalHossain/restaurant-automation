@@ -28,3 +28,8 @@ export interface FoodImageSpecs {
     size: number;
     deviceType: DeviceType;
   }
+
+export interface AddonImageSpecs {
+  imageUrl: string;
+  imageSize: number;
+}

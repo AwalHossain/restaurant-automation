@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { Secret } from 'jsonwebtoken';
+import { JwtPayload, Secret } from 'jsonwebtoken';
 import env from '../../config';
 import ApiError from '../../errors/ApiError';
 import { jwtHelpers } from '../../helpers/jwtHelpers';
@@ -10,7 +10,8 @@ const auth =
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       //get authorization token
-      const token = req.headers.authorization;
+      const token = req.headers.cookie;
+      console.log(token, 'token');
       if (!token) {
         throw new ApiError(httpStatus.UNAUTHORIZED, 'You are not authorized');
       }
@@ -18,8 +19,8 @@ const auth =
       let verifiedUser = null;
 
       verifiedUser = jwtHelpers.verifyToken(token, env.JWT_SECRET as Secret);
-
-      req.user = verifiedUser; // role  , userid
+      console.log(verifiedUser, 'verifiedUser');
+      req.user = verifiedUser as JwtPayload; // role  , userid
 
       // role diye guard korar jnno
       if (requiredRoles.length && !requiredRoles.includes(verifiedUser.role)) {

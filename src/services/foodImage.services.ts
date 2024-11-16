@@ -4,6 +4,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import sharp from 'sharp';
 import env from '../config';
 import { ImageSpecs } from '../types/food.types';
+import { AddOnImageService } from './addonImage.service';
 
 
 cloudinary.config({
@@ -21,11 +22,21 @@ export class ImageService {
     DESKTOP: { width: 1920, height: 1080 }
   };
 
+  private addOnImageService: AddOnImageService;
+
+  constructor () {
+    this.addOnImageService = new AddOnImageService();
+  }
+
   async uploadFoodImage(
     file: Express.Multer.File,
   ): Promise<ImageSpecs[]> {
    
    const images: ImageSpecs[] = [];
+
+   const validation = await this.addOnImageService.validateImage(file);
+
+
   
    for(const [deviceType, specs] of Object.entries(this.imageSpecs)) {
     // 1. Optimize image
@@ -58,4 +69,7 @@ export class ImageService {
    }
     return images;
   }
+
+
+
 }

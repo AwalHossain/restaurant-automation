@@ -16,13 +16,15 @@ export class AuthController {
       statusCode: httpStatus.OK,
       success: true,
       message: "OTP sent successfully",
-      data: `{Your Otp here is ${otp}}`
+      data: `{${otp} and it will expire in 2 minutes}`
     });
   });
 
    // Step 2: Verify OTP
   verifyOTP = catchAsync(async (req: Request, res: Response) => {
     const { phone, otp } = req.body;
+    console.log(phone, otp, "phone, otp");
+    
     const isValid = await this.authService.verifyOTP(phone, otp);
     console.log(isValid, "isValid");
 

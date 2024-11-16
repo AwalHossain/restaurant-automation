@@ -3,7 +3,7 @@ import sendResponse from "../../../../../shared/sendResponse";
 
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { CreateCategoryInput } from "../dtos/category.dto";
+import { AddSubCategoryInput, CreateCategoryInput, UpdateCategoryWithSubsInput } from "../dtos/category.dto";
 import { CategoryService } from "../services/category.services";
 
 
@@ -46,6 +46,30 @@ export class CategoryController {
             data: result
         });
     });
+
+    addSubCategory = catchAsync(async (req: Request, res: Response) => {
+        const { body } = req;
+        const result = await this.categoryService.addSubCategory(body as AddSubCategoryInput);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: 'Sub category added successfully',
+            data: result
+        })
+    })
+
+    updateCategoryWithSubs = catchAsync(async (req: Request, res: Response) => {
+        const { body } = req;
+        const result = await this.categoryService.updateCategoryWithSubs(body as UpdateCategoryWithSubsInput);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: 'Category updated successfully',
+            data: result
+        })
+    })
+
+
 
  
 }

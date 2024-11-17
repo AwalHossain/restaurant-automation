@@ -60,7 +60,11 @@ export class AuthController {
       statusCode: httpStatus.CREATED,
       success: true,
       message: "User registered successfully",
-      data: user,
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
     });
   });
 
@@ -84,7 +88,11 @@ export class AuthController {
       statusCode: httpStatus.CREATED,
       success: true,
       message: "User logged in successfully",
-      data: user,
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
     });
   });
 
@@ -98,7 +106,7 @@ export class AuthController {
   res.cookie('access_token', accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 15 * 60 * 1000 // 15 minutes
+    maxAge: 1 * 24 * 60 * 60 * 1000 // 1 day
   });
 
   res.cookie('refresh_token', refreshToken, {
@@ -107,11 +115,16 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
+
     sendResponse(res, {
       statusCode: httpStatus.CREATED,
       success: true,
       message: "Admin registered successfully",
-      data: user,
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
     });
   });
 
@@ -139,7 +152,11 @@ export class AuthController {
       statusCode: httpStatus.OK,
       success: true,
       message: "Admin logged in successfully",
-      data: user,
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
     });
   });
 

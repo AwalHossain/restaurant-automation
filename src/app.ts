@@ -10,7 +10,14 @@ import { prisma } from './shared/prisma';
 
 const app: Application = express();
 
-app.use(cors());
+let origin = ['http://localhost:3000'];
+
+app.use(cors({
+  origin: origin, // your frontend URL
+  credentials: true, // important for cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+}));
 app.use(cookieParser());
 
 //parser

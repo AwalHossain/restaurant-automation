@@ -1,3 +1,4 @@
+import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
 import { CreateAddonGroupInput, CreateAddonInput } from "../dtos/addon.dto";
@@ -25,13 +26,12 @@ export class AddOnValidationService {
       'SIDE',
       'DRINK',
       'EXTRA'
-    ]).optional(),
+    ]),
     
-    imageUrl: z.string().url("Invalid image URL").optional(),
+    imageUrl: z.string().url("Invalid image URL"),
     
-    size: z.number()
-    .max(5 * 1024 * 1024, "Image size cannot exceed 5MB")
-    .optional(),
+    imageSize: z.number()
+    .max(5 * 1024 * 1024, "Image size cannot exceed 5MB"),
     
     preparationTime: z.number()
       .int("Preparation time must be a whole number")
@@ -71,7 +71,13 @@ export class AddOnValidationService {
   // Validation method for single addon
   async validateCreateAddonInput(input: CreateAddonInput): Promise<void> {
     try {
+      // name validation
+      if(!input.name || input.name.trim() === ''){
+        throw new ApiError(httpStatus.BAD_REQUEST, "Addon name is required");
+      }
       await this.createAddonSchema.parseAsync(input);
+
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw error;
@@ -83,7 +89,17 @@ export class AddOnValidationService {
   // Validation method for addon group with its addons
   async validateCreateAddonGroupInput(input: CreateAddonGroupInput): Promise<void> {
     try {
+      // name validation
+      if(!input.name || input.name.trim() === ''){
+        throw new ApiError(httpStatus.BAD_REQUEST, "Addon name is required");
+      }
       await this.createAddonGroupSchema.parseAsync(input);
+            // check for duplicate addon IDS
+            const uniqueAddonIds = new Set(input.addons.map(addon => addon.addonId));
+            if(uniqueAddonIds.size !== input.addons.length){
+              throw new ApiError(httpStatus.BAD_REQUEST, "Duplicate addon IDs are not allowed");
+            }
+      
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw error;
@@ -95,10 +111,10 @@ export class AddOnValidationService {
   // Validation for addon price
   validateAddonPrice(price: number): void {
     if (price < 0) {
-      throw new ApiError(400, "Addon price cannot be negative");
+      throw new ApiError(httpStatus.BAD_REQUEST, "Addon price cannot be negative");
     }
     if (price > 999999.99) {
-      throw new ApiError(400, "Addon price exceeds maximum allowed value");
+      throw new ApiError(httpStatus.BAD_REQUEST, "Addon price exceeds maximum allowed value");
     }
   }
 

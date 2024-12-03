@@ -3,21 +3,25 @@ import sendResponse from "../../../../../shared/sendResponse";
 
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { AddSubCategoryInput, CreateCategoryInput, UpdateCategoryWithSubsInput } from "../dtos/category.dto";
+import { AddSubCategoryInput, UpdateCategoryWithSubsInput } from "../dtos/category.dto";
 import { CategoryService } from "../services/category.services";
+import { CategoryValidationService } from "../validation/category-validation.service";
 
 
 
 export class CategoryController {
-    private readonly categoryService: CategoryService;
-    constructor() {
-        this.categoryService = new CategoryService();
+    constructor(
+        private readonly categoryService: CategoryService,
+        private readonly categoryValidationService: CategoryValidationService
+    ) {
+        this.categoryService = categoryService;
+        this.categoryValidationService = categoryValidationService;
     }
 
     createCategory = catchAsync(async (req: Request, res: Response) => {
         const { body } = req;
-
-        const result = await this.categoryService.createCategory(body as CreateCategoryInput);
+        const validatedData = await this.categoryValidationService.validateCreateCategory(body);
+        const result = await this.categoryService.createCategory(validatedData);
         sendResponse(res, {
             statusCode: httpStatus.OK,
             success: true,

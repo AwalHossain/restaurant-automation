@@ -33,12 +33,16 @@ export interface CreateAddonInput {
     deletedAt?: Date;
   }
 
-  interface AddonGroupInput {
+  export interface AddonGroupInput {
     addonId: string;
     minQuantity: number;
     maxQuantity: number;
     defaultQuantity: number;
     displayOrder: number;
+    isRequired: boolean;
+    extraPrice: number;
+    updatedById?: string;
+
   }
 
 

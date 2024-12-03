@@ -9,11 +9,12 @@ import { FoodService } from "../services/food.services";
 
 
 export class FoodController {
-    private readonly foodService: FoodService;
-    private readonly imageService: ImageService;
-    constructor() {
-        this.foodService = new FoodService();
-        this.imageService = new ImageService();
+    constructor(
+        private readonly foodService: FoodService,
+        private readonly imageService: ImageService
+    ) {
+        this.foodService = foodService;
+        this.imageService = imageService;
     }
 
     createFood = catchAsync(async (req: Request, res: Response) => {

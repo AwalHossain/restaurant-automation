@@ -1,6 +1,5 @@
-import { JwtPayload } from "jsonwebtoken";
 import { prisma } from "../../../../../shared/prisma";
-import { CreateAddonGroupInput, CreateAddonInput, UpdateAddonInput } from "../dtos/addon.dto";
+import { CreateAddonGroupInput, CreateAddonInput, UpdateAddonGroupInput, UpdateAddonInput } from "../dtos/addon.dto";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 
 
@@ -11,12 +10,9 @@ export class AddOnService {
     this.addOnValidationService = new AddOnValidationService();
   }
 
-  async createAddOn(input: CreateAddonInput, user: JwtPayload | null) {
-    console.log(user, 'user');
-    
-    const { userId: createdById } = user || {};
-    input.createdById = createdById || '';
-    input.updatedById = createdById || '';
+  async createAddOn(input: CreateAddonInput, userId: string) {
+    input.createdById = userId;
+    input.updatedById = userId;
     await this.addOnValidationService.validateCreateAddonInput(input);
 
     const addon = await prisma.addon.create({
@@ -32,12 +28,12 @@ export class AddOnService {
         nutritionInfo: input.nutritionInfo,
         createdBy: {
           connect: {
-            id: createdById
+            id: userId
           }
         },
         updatedBy: {
           connect: {
-            id: input.updatedById
+            id: userId
           }
         }
       },
@@ -57,10 +53,9 @@ export class AddOnService {
   }
 
 
-  async createAddOnGroup(input: CreateAddonGroupInput, user: JwtPayload | null) {
-    const { userId: createdById } = user || {};
-    input.createdById = createdById || '';
-    input.updatedById = createdById || '';
+  async createAddOnGroup(input: CreateAddonGroupInput, userId: string) {
+    input.createdById = userId;
+    input.updatedById = userId;
 
     const addonGroup = await prisma.addonGroup.create({
       data: {
@@ -70,28 +65,36 @@ export class AddOnService {
         description: input.description,
         createdBy: {
           connect: {
-            id: createdById
+            id: userId
           }
         },
-        updatedBy: {
-          connect: {
-            id: createdById
-          }
-        },
-        foodAddons: {
+        addons:{
           create: input.addons.map((addon) => ({
-            addonId: addon.addonId,
-            minQuantity: addon.minQuantity,
-            maxQuantity: addon.maxQuantity,
-            defaultQuantity: addon.defaultQuantity,
-            displayOrder: addon.displayOrder,
-            addon: {
-              connect: {
+            addon:{
+              connect:{
                 id: addon.addonId
               }
             },
+            minQuantity: addon.minQuantity,
+            maxQuantity: addon.maxQuantity,
+            isRequired: addon.isRequired,
+            extraPrice: addon.extraPrice,
+            displayOrder: addon.displayOrder,
           }))
-        }
+        },
+        updatedBy: {
+          connect: {
+            id: userId
+          }
+        },
+      },
+      include:{
+        addons:{
+          include:{
+            addon: true
+          }
+        },
+        _count: true
       }
     });
     return addonGroup;
@@ -106,7 +109,7 @@ export class AddOnService {
   async getAddonGroups() {
     const addonGroups = await prisma.addonGroup.findMany({
       include: {
-        foodAddons: {
+        addons: {
           include: {
             addon: true
           }
@@ -131,6 +134,38 @@ export class AddOnService {
       data: input
     });
     return addon;
+  }
+
+  async getAddonGroupById(id: string) {
+    const addonGroup = await prisma.addonGroup.findUnique({
+      where: { id }
+    });
+    return addonGroup;
+  }
+
+  async updateAddonGroup(id: string, input: UpdateAddonGroupInput) {
+
+    const addonGroup = await prisma.addonGroup.update({
+      where: { id },
+      data:{
+        name: input.name,
+        isRequired: input.isRequired,
+        maxSelectionsAllowed: input.maxSelectionsAllowed,
+        description: input.description,
+      }
+    });
+    return addonGroup;
+  }
+
+  async deleteAddonGroup(id: string) {
+    await prisma.addonToGroup.deleteMany({
+      where: { groupId: id },
+    });
+    
+    const addonGroup = await prisma.addonGroup.delete({
+      where: { id },
+    });
+    return addonGroup;
   }
 
 }

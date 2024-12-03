@@ -358,6 +358,9 @@ model Addon {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   foods           FoodAddon[]
+
+  groupAddons     AddonToGroup[]
+
   createdBy       User             @relation("AddonCreator", fields: [createdById], references: [id])
   createdById     String
   updatedBy       User             @relation("AddonUpdater", fields: [updatedById], references: [id])
@@ -406,10 +409,30 @@ model AddonGroup {
   description          String?
   foodAddons           FoodAddon[]
 
+  addons          AddonToGroup[]
+
   createdBy            User        @relation("AddonGroupCreator", fields: [createdById], references: [id])
   createdById          String
   updatedBy            User        @relation("AddonGroupUpdater", fields: [updatedById], references: [id])
   updatedById          String
+}
+
+// Junction table with additional configuration
+model AddonToGroup {
+  id          String     @id @default(cuid())
+  addon       Addon      @relation(fields: [addonId], references: [id])
+  addonId     String
+  group       AddonGroup @relation(fields: [groupId], references: [id])
+  groupId     String
+  
+  // Additional configuration for each addon in this group
+  maxQuantity    Int     @default(1)    // Maximum quantity allowed
+  minQuantity    Int     @default(0)    // Minimum quantity required
+  isRequired     Boolean @default(false) // Is this addon required in this group?
+  extraPrice     Decimal @default(0)     // Special price for this addon in this group
+  displayOrder   Int     @default(0)     // Order in which to display this addon
+
+  @@unique([addonId, groupId])
 }
 
 model PriceHistory {

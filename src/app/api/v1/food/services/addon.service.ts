@@ -1,22 +1,17 @@
-import { JwtPayload } from "jsonwebtoken";
 import { prisma } from "../../../../../shared/prisma";
-import { CreateAddonGroupInput, CreateAddonInput, UpdateAddonInput } from "../dtos/addon.dto";
+import { getCurrentUserId } from "../../../../../utils/user-context";
+import { CreateAddonGroupInput, CreateAddonInput, UpdateAddonGroupInput, UpdateAddonInput } from "../dtos/addon.dto";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 
-
 export class AddOnService {
-  private readonly addOnValidationService: AddOnValidationService
-
-  constructor () {
-    this.addOnValidationService = new AddOnValidationService();
+  constructor(private readonly addOnValidationService: AddOnValidationService) {
+    this.addOnValidationService = addOnValidationService;
   }
 
-  async createAddOn(input: CreateAddonInput, user: JwtPayload | null) {
-    console.log(user, 'user');
-    
-    const { userId: createdById } = user || {};
-    input.createdById = createdById || '';
-    input.updatedById = createdById || '';
+  async createAddOn(input: CreateAddonInput) {
+    const { userId } = getCurrentUserId();
+    input.createdById = userId;
+    input.updatedById = userId;
     await this.addOnValidationService.validateCreateAddonInput(input);
 
     const addon = await prisma.addon.create({
@@ -32,12 +27,12 @@ export class AddOnService {
         nutritionInfo: input.nutritionInfo,
         createdBy: {
           connect: {
-            id: createdById
+            id: userId
           }
         },
         updatedBy: {
           connect: {
-            id: input.updatedById
+            id: userId
           }
         }
       },
@@ -51,52 +46,126 @@ export class AddOnService {
           }
         }
       }
-    })
+    });
 
     return addon;
   }
 
+  async createAddOnGroupForFood(
+    foodId: string,
+    addonGroups: Array<Omit<CreateAddonGroupInput, "foodId">>,
+    userId: string
+  ) {
+    const addonGroupsWithFoodId = addonGroups.map(addonGroup => ({
+      ...addonGroup,
+      foodId
+    }));
 
-  async createAddOnGroup(input: CreateAddonGroupInput, user: JwtPayload | null) {
-    const { userId: createdById } = user || {};
-    input.createdById = createdById || '';
-    input.updatedById = createdById || '';
+    // validate all addon groups
+    await Promise.all(
+      addonGroupsWithFoodId.map(addonGroup => this.addOnValidationService.validateCreateAddonGroupInput(addonGroup))
+    );
 
-    const addonGroup = await prisma.addonGroup.create({
-      data: {
-        name: input.name,
-        isRequired: input.isRequired,
-        maxSelectionsAllowed: input.maxSelectionsAllowed,
-        description: input.description,
-        createdBy: {
-          connect: {
-            id: createdById
-          }
-        },
-        updatedBy: {
-          connect: {
-            id: createdById
-          }
-        },
-        foodAddons: {
-          create: input.addons.map((addon) => ({
-            addonId: addon.addonId,
-            minQuantity: addon.minQuantity,
-            maxQuantity: addon.maxQuantity,
-            defaultQuantity: addon.defaultQuantity,
-            displayOrder: addon.displayOrder,
-            addon: {
-              connect: {
-                id: addon.addonId
+    console.log(addonGroupsWithFoodId, "addonGroupsWithFoodId");
+
+    // create all addon groups
+    const createdAddonGroups = await prisma.$transaction(async tx => {
+      return await Promise.all(
+        addonGroups.map(async addonGroup => {
+          return await tx.addonGroup.create({
+            data: {
+              name: addonGroup.name,
+              isRequired: addonGroup.isRequired,
+              maxSelectionsAllowed: addonGroup.maxSelectionsAllowed,
+              description: addonGroup.description,
+              // create the addon relation
+              addons: {
+                create: addonGroup.addons.map(addon => ({
+                  addon: {
+                    connect: {
+                      id: addon.addonId
+                    }
+                  },
+                  minQuantity: addon.minQuantity,
+                  maxQuantity: addon.maxQuantity,
+                  isRequired: addon.isRequired,
+                  extraPrice: addon.extraPrice,
+                  displayOrder: addon.displayOrder
+                }))
+              },
+              createdBy: {
+                connect: {
+                  id: userId
+                }
+              },
+              updatedBy: {
+                connect: {
+                  id: userId
+                }
+              },
+              // create the relation with food through junction table
+              foods: {
+                create: {
+                  food: {
+                    connect: {
+                      id: foodId
+                    }
+                  },
+                  isRequired: addonGroup.isRequired,
+                  maxSelectionsAllowed: addonGroup.maxSelectionsAllowed
+                }
               }
             },
-          }))
+            include: {
+              addons: {
+                include: {
+                  addon: true
+                }
+              }
+            }
+          });
+        })
+      );
+    });
+    console.log(createdAddonGroups, "createdAddonGroups");
+    return createdAddonGroups;
+  }
+
+  // helper method to connet existing addoonGroup to food
+  async connectAddonGroupToFood(
+    foodId: string,
+    addonGroupId: string,
+    config: { isRequired: boolean; maxSelectionsAllowed: number; updatedById: string }
+  ) {
+    const foodAddonGroup = await prisma.foodAddonGroup.create({
+      data: {
+        food: {
+          connect: {
+            id: foodId
+          }
+        },
+        addonGroup: {
+          connect: {
+            id: addonGroupId
+          }
+        },
+        isRequired: config.isRequired,
+        maxSelectionsAllowed: config.maxSelectionsAllowed
+      },
+      include: {
+        addonGroup: {
+          include: {
+            addons: {
+              include: {
+                addon: true
+              }
+            }
+          }
         }
       }
     });
-    return addonGroup;
+    return foodAddonGroup;
   }
-
 
   async getAddOns() {
     const addons = await prisma.addon.findMany();
@@ -106,7 +175,7 @@ export class AddOnService {
   async getAddonGroups() {
     const addonGroups = await prisma.addonGroup.findMany({
       include: {
-        foodAddons: {
+        addons: {
           include: {
             addon: true
           }
@@ -123,8 +192,7 @@ export class AddOnService {
     return addon;
   }
 
-
-  async updateAddOn(id: string, input: UpdateAddonInput ) {
+  async updateAddOn(id: string, input: UpdateAddonInput) {
     await this.addOnValidationService.validateUpdateAddonInput(input);
     const addon = await prisma.addon.update({
       where: { id },
@@ -133,4 +201,34 @@ export class AddOnService {
     return addon;
   }
 
+  async getAddonGroupById(id: string) {
+    const addonGroup = await prisma.addonGroup.findUnique({
+      where: { id }
+    });
+    return addonGroup;
+  }
+
+  async updateAddonGroup(id: string, input: UpdateAddonGroupInput) {
+    const addonGroup = await prisma.addonGroup.update({
+      where: { id },
+      data: {
+        name: input.name,
+        isRequired: input.isRequired,
+        maxSelectionsAllowed: input.maxSelectionsAllowed,
+        description: input.description
+      }
+    });
+    return addonGroup;
+  }
+
+  async deleteAddonGroup(id: string) {
+    await prisma.addonToGroup.deleteMany({
+      where: { groupId: id }
+    });
+
+    const addonGroup = await prisma.addonGroup.delete({
+      where: { id }
+    });
+    return addonGroup;
+  }
 }

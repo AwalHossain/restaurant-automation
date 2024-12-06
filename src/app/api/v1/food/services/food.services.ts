@@ -1,15 +1,27 @@
+import httpStatus from "http-status";
+import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
+import { getCurrentUserId } from "../../../../../utils/user-context";
+import { CreateAddonGroupInput } from "../dtos/addon.dto";
 import { CreateFoodInput } from "../dtos/food.dto";
+import { CreateVariantInput } from "../dtos/variants.dto";
+import { AddOnValidationService } from "../validation/addon-validation.service";
 import { FoodValidationService } from "../validation/food-validation.service";
-
-
+import { VariantValidationService } from "../validation/variant-validation.service";
+import { AddOnService } from "./addon.service";
+import { VariantService } from "./variants.service";
 
 export class FoodService {
-  private readonly foodValidationService: FoodValidationService;
-  constructor () {
-    this.foodValidationService = new FoodValidationService();
+  constructor(
+    private readonly foodValidationService: FoodValidationService,
+    private readonly variantService: VariantService,
+    private readonly addonService: AddOnService
+  ) {
+    this.foodValidationService = foodValidationService;
+    this.variantService = new VariantService(new VariantValidationService());
+    this.addonService = new AddOnService(new AddOnValidationService());
   }
-  
+
   // async createFood(input: CreateFoodInput) {
   //   // Validate input
   //   await this.foodValidationService.validateCreateFoodInput(input);
@@ -24,7 +36,7 @@ export class FoodService {
   //         basePrice: input.basePrice,
   //         minOrderQuantity: input.minOrderQuantity,
   //         createdById: input.createdBy,
-          
+
   //         // Create food images
   //         foodImages: {
   //           create: input.images.map((image) => ({
@@ -81,8 +93,8 @@ export class FoodService {
   //   return createdFood;
   // }
 
-
-  async createFood(input: CreateFoodInput) {
+  // step 1 create basic food
+  async createBasicFood(input: CreateFoodInput) {
     const food = await prisma.food.create({
       data: {
         name: input.name,
@@ -90,7 +102,7 @@ export class FoodService {
         basePrice: input.basePrice,
         minOrderQuantity: input.minOrderQuantity,
         foodImages: {
-          create: input.images.map((image) => ({
+          create: input.images.map(image => ({
             url: image.url,
             deviceType: image.deviceType,
             width: image.width,
@@ -107,130 +119,343 @@ export class FoodService {
     return food;
   }
 
+  // step 2: Add Variants
+  async addFoodVariants(foodId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
+    const createdVariants = await this.variantService.createBulkVariants(foodId, variants);
+    return createdVariants;
+  }
 
+  // step 3: add food addon groups
+  async addFoodAddonGroups(foodId: string, addonGroups: Array<Omit<CreateAddonGroupInput, "foodId">>) {
+    try {
+      const { userId } = getCurrentUserId();
 
-    async updateFoodDetails(input: CreateFoodInput) {
-      
-      
-      const updatedFood = await prisma.food.update({
-        where: { id: input.id },
-        data: {
-          isPopular: input.isPopular,
-          isRecommended: input.isRecommended,
-          isNewArrival: input.isNewArrival,
-          freeDelivery: input.freeDelivery,
-          specialDeliveryFee: input.specialDeliveryFee,
-          haveDiscount: input.haveDiscount,
-          discountedPrice: input.discountedPrice,
-          offer: input.offer,
-          topSnacks: input.topSnacks,
-          dynamicHome: input.dynamicHome,
-          trending: input.trending,
-          isFree: input.isFree,
-          isFeatured: input.isFeatured,
-          expiryDate: input.expiryDate,
-          availableStartTime: input.availableStartTime,
-          availableEndTime: input.availableEndTime,
-          trendingStartTime: input.trendingStartTime,
-          trendingEndTime: input.trendingEndTime,
-          categories: {
-            connect: input?.categoryIds?.map(id => ({ id }))
-          },
-          basePrice: input.basePrice,
-          minOrderQuantity: input.minOrderQuantity,
-          updatedById: input.userId,
+      // Separate groups
+      const existingAddonGroups = addonGroups.filter(group => group.addonGroupId);
+      const newGroups = addonGroups.filter(group => !group.addonGroupId);
+
+      console.log("Processing groups:", {
+        existing: existingAddonGroups.length,
+        new: newGroups.length
+      });
+
+      // Handle existing groups
+      const existingGroupPromises = existingAddonGroups.map(group =>
+        this.addonService.connectAddonGroupToFood(foodId, group.addonGroupId!, {
+          isRequired: group.isRequired,
+          maxSelectionsAllowed: group.maxSelectionsAllowed,
+          updatedById: userId
+        })
+      );
+
+      // Handle new groups
+      const newGroupPromise =
+        newGroups.length > 0
+          ? this.addonService.createAddOnGroupForFood(foodId, newGroups, userId)
+          : Promise.resolve([]);
+
+      // Wait for all operations to complete
+      const [existingResults, newResults] = await Promise.all([Promise.all(existingGroupPromises), newGroupPromise]);
+
+      console.log("Results:", {
+        existing: existingResults.length,
+        new: Array.isArray(newResults) ? newResults.length : 0
+      });
+
+      // Combine and return results
+      return [...existingResults, ...(Array.isArray(newResults) ? newResults : [newResults])];
+    } catch (error) {
+      console.error("Error in addFoodAddonGroups:", error);
+      throw error;
+    }
+  }
+
+  async updateFoodDetails(input: CreateFoodInput) {
+    const updatedFood = await prisma.food.update({
+      where: { id: input.id },
+      data: {
+        // Basic food properties
+        basePrice: input.basePrice,
+        minOrderQuantity: input.minOrderQuantity,
+        // Marketing/visibility flags
+        isPopular: input.isPopular,
+        isRecommended: input.isRecommended,
+        isNewArrival: input.isNewArrival,
+        // Delivery options
+        freeDelivery: input.freeDelivery,
+        specialDeliveryFee: input.specialDeliveryFee,
+        // Pricing and discounts
+        haveDiscount: input.haveDiscount,
+        discountedPrice: input.discountedPrice,
+        // Feature flags
+        topSnacks: input.topSnacks,
+        dynamicHome: input.dynamicHome,
+        trending: input.trending,
+        isFree: input.isFree,
+        isFeatured: input.isFeatured,
+        // Availability
+        expiryDate: input.expiryDate,
+        availableStartTime: input.availableStartTime,
+        availableEndTime: input.availableEndTime,
+        trendingStartTime: input.trendingStartTime,
+        trendingEndTime: input.trendingEndTime,
+        // Relations
+        categories: {
+          connect: input?.categoryIds?.map(id => ({ id }))
         },
-        include: {
-          foodImages: true,
-          variants: true,
-          categories: true,
-          branches: true
+        updatedById: input.userId
+      },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: true,
+        branches: true
+      }
+    });
+    return updatedFood;
+  }
+
+  async getAllFoods() {
+    const foods = await prisma.food.findMany({
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: true,
+        branches: true
+      }
+    });
+    return foods;
+  }
+
+  async getFoodById(id: string) {
+    const food = await prisma.food.findUnique({
+      where: { id },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: true,
+        branches: true,
+        campaign: true,
+        addonGroups: {
+          include: {
+            addonGroup: {
+              include: {
+                addons: {
+                  include: {
+                    addon: true
+                  }
+                }
+              }
+            }
+          }
         }
       }
-    );
-      return updatedFood;
-    }
-
-
-    async getAllFoods() {
-      const foods = await prisma.food.findMany({
-        include: {
-          foodImages: true,
-          variants: true,
-          categories: true,
-          branches: true
-        }
-      });
-      return foods;
-    } 
-
-    async getFoodById(id: string) {
-      const food = await prisma.food.findUnique({
-        where: { id },
-        include: {
-          foodImages: true,
-          variants: true,
-          categories: true,
-          branches: true,
-          campaign: true,
-          addons: true,
-        }
-      });
-      return food;
-    }
+    });
+    return food;
+  }
 
   async getFoodByMainCategoryId(id: string) {
-      const food = await prisma.food.findMany({
-        where: { categories:{
-          some: { 
-            OR:[
-              {id},
-              {parentId: id}
-            ]
-          }
-        } },
-        include: {
-          foodImages: true,
-          variants: true,
-          categories: true,
-          branches: true,
-          addons:{
-            include:{
-              addon: true
-            }
-          },
-          campaign: true
-        }
-      });
-      return food;
+    // check i main category is active or not
+    const mainCategory = await prisma.category.findUnique({
+      where: { id },
+      select: { isActive: true }
+    });
+
+    if (!mainCategory) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Main category not found");
     }
 
-    async getFoodBySubCategoryId(id: string) {
-      const food = await prisma.food.findMany({
-            where: { categories:{
-              some: { 
-                id,
-                 // Ensure it's actually a subcategory
-                parentId:{
-                  not: null
-                },
-                isActive: true
-               },
-            }},
-            include: {
-              foodImages: true,
-              variants: true,
-              categories: true,
-              branches: true,
-              addons:{
-                include:{
-                  addon: true
-                }
-              },
-              campaign: true
-            }
-      });
-      return food;
+    if (!mainCategory.isActive) {
+      return []; // Return empty if main category is inactive
     }
-    
+
+    const food = await prisma.food.findMany({
+      where: {
+        categories: {
+          some: {
+            AND: [
+              // check the category relation
+              {
+                OR: [
+                  { id }, // main caegory
+                  {
+                    AND: [
+                      { parentId: id },
+                      { isActive: true } // ensure sub category is active
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: true,
+        branches: true,
+        addonGroups: {
+          include: {
+            addonGroup: true
+          }
+        },
+        campaign: true
+      }
+    });
+    return food;
+  }
+
+  async getFoodBySubCategoryId(id: string) {
+    // verify this is active sub-category
+    const subCategory = await prisma.category.findUnique({
+      where: { id },
+      select: {
+        parentId: true,
+        isActive: true,
+        parent: {
+          select: {
+            isActive: true
+          }
+        }
+      }
+    });
+    if (!subCategory) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
+    }
+
+    if (!subCategory.parentId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Provided ID is not a subcategory");
+    }
+
+    if (!subCategory.isActive) {
+      return []; // Return empty if subcategory is inactive
+    }
+
+    const food = await prisma.food.findMany({
+      where: {
+        categories: {
+          some: {
+            AND: [
+              { id },
+              { isActive: true },
+              {
+                parent: {
+                  isActive: true
+                }
+              }
+            ]
+          }
+        }
+      },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: {
+          where: {
+            isActive: true
+          }
+        },
+        branches: true,
+        addonGroups: {
+          include: {
+            addonGroup: true
+          }
+        },
+        campaign: true
+      }
+    });
+    return food;
+  }
+
+  async getFoodsByCategory(categoryId: string) {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        parentId: true,
+        isActive: true,
+        // if its sub category, check its parent is active or not
+        parent: {
+          select: {
+            isActive: true
+          }
+        }
+      }
+    });
+
+    if (!category) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
+    }
+
+    if (!category.isActive) {
+      return []; // Return empty if subcategory is inactive
+    }
+
+    // If it's a subcategory, check if parent is active
+    if (category.parentId && !category.parent?.isActive) {
+      return [];
+    }
+
+    const food = await prisma.food.findMany({
+      where: {
+        categories: {
+          some: {
+            AND: [
+              // if parenId is null, it's main category, so include it sub category
+              // if parentId is not null, it's sub category, so just look for exact match
+              category.parentId === null
+                ? {
+                    OR: [
+                      { id: categoryId },
+                      {
+                        AND: [
+                          { parentId: categoryId },
+                          { isActive: true } // ensure sub category is active
+                        ]
+                      }
+                    ]
+                  }
+                : {
+                    AND: [
+                      { id: categoryId },
+                      { isActive: true },
+                      {
+                        parent: {
+                          isActive: true
+                        }
+                      }
+                    ],
+                    isActive: true
+                  }
+            ]
+          }
+        }
+      },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: {
+          where: {
+            isActive: true
+          }
+        },
+        branches: true,
+        addonGroups: {
+          include: {
+            addonGroup: {
+              include: {
+                addons: {
+                  include: {
+                    addon: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        campaign: true
+      }
+    });
+    return food;
+  }
 }

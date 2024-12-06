@@ -1,3 +1,4 @@
+import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
 import { CreateAddonGroupInput, CreateAddonInput } from "../dtos/addon.dto";
@@ -7,70 +8,65 @@ import { CreateAddonGroupInput, CreateAddonInput } from "../dtos/addon.dto";
 export class AddOnValidationService {
   // Validation schema for addon creation
   private readonly createAddonSchema = z.object({
-    name: z.string()
+    name: z
+      .string()
       .min(2, "Addon name must be at least 2 characters")
       .max(50, "Addon name cannot exceed 50 characters"),
-    
-    price: z.number()
-      .min(0, "Price cannot be negative")
-      .max(999999.99, "Price is too high"),
-    
-    description: z.string()
-      .max(200, "Description cannot exceed 200 characters")
-      .optional(),
-    
-    category: z.enum([
-      'TOPPING',
-      'SAUCE',
-      'SIDE',
-      'DRINK',
-      'EXTRA'
-    ]).optional(),
-    
-    imageUrl: z.string().url("Invalid image URL").optional(),
-    
-    size: z.number()
-    .max(5 * 1024 * 1024, "Image size cannot exceed 5MB")
-    .optional(),
-    
-    preparationTime: z.number()
+
+    price: z.number().min(0, "Price cannot be negative").max(999999.99, "Price is too high"),
+
+    description: z.string().max(200, "Description cannot exceed 200 characters").optional(),
+
+    category: z.enum(["TOPPING", "SAUCE", "SIDE", "DRINK", "EXTRA"]),
+
+    imageUrl: z.string().url("Invalid image URL"),
+
+    imageSize: z.number().max(5 * 1024 * 1024, "Image size cannot exceed 5MB"),
+
+    preparationTime: z
+      .number()
       .int("Preparation time must be a whole number")
       .min(0, "Preparation time cannot be negative")
       .max(180, "Preparation time cannot exceed 180 minutes")
       .optional(),
-    
-    allergens: z.array(z.string())
-      .max(20, "Too many allergens listed")
-      .optional(),
-    
-    nutritionInfo: z.record(z.any())
-      .optional(),
-    
+
+    allergens: z.array(z.string()).max(20, "Too many allergens listed").optional(),
+
+    nutritionInfo: z.record(z.any()).optional(),
+
     createdById: z.string().uuid("Invalid creator ID"),
     updatedById: z.string().uuid("Invalid updater ID")
   });
 
   // Validation schema for addon group creation
   private readonly createAddonGroupSchema = z.object({
-    name: z.string()
+    name: z
+      .string()
       .min(2, "Group name must be at least 2 characters")
       .max(50, "Group name cannot exceed 50 characters"),
-    
+
     isRequired: z.boolean(),
-    
-    maxSelectionsAllowed: z.number()
+
+    maxSelectionsAllowed: z
+      .number()
       .int("Maximum selections must be a whole number")
       .min(1, "Maximum selections must be at least 1")
       .max(20, "Maximum selections cannot exceed 20"),
-    
-    addons: z.array(this.createAddonSchema)
-      .min(1, "Addon group must contain at least one addon")
-      .max(50, "Too many addons in group")
+
+    addons: z.array(
+      z.object({
+        addonId: z.string().cuid("Invalid addon ID")
+      })
+    )
   });
 
   // Validation method for single addon
   async validateCreateAddonInput(input: CreateAddonInput): Promise<void> {
     try {
+      // name validation
+      if (!input.name || input.name.trim() === "") {
+        throw new ApiError(httpStatus.BAD_REQUEST, "Addon name is required");
+      }
       await this.createAddonSchema.parseAsync(input);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -83,7 +79,16 @@ export class AddOnValidationService {
   // Validation method for addon group with its addons
   async validateCreateAddonGroupInput(input: CreateAddonGroupInput): Promise<void> {
     try {
+      // name validation
+      if (!input.name || input.name.trim() === "") {
+        throw new ApiError(httpStatus.BAD_REQUEST, "Addon name is required");
+      }
       await this.createAddonGroupSchema.parseAsync(input);
+      // check for duplicate addon IDS
+      const uniqueAddonIds = new Set(input.addons.map(addon => addon.addonId));
+      if (uniqueAddonIds.size !== input.addons.length) {
+        throw new ApiError(httpStatus.BAD_REQUEST, "Duplicate addon IDs are not allowed");
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw error;
@@ -95,10 +100,10 @@ export class AddOnValidationService {
   // Validation for addon price
   validateAddonPrice(price: number): void {
     if (price < 0) {
-      throw new ApiError(400, "Addon price cannot be negative");
+      throw new ApiError(httpStatus.BAD_REQUEST, "Addon price cannot be negative");
     }
     if (price > 999999.99) {
-      throw new ApiError(400, "Addon price exceeds maximum allowed value");
+      throw new ApiError(httpStatus.BAD_REQUEST, "Addon price exceeds maximum allowed value");
     }
   }
 
@@ -110,11 +115,7 @@ export class AddOnValidationService {
   }
 
   // Validation for addon quantities
-  validateAddonQuantities(input: {
-    maxQuantity: number;
-    minQuantity: number;
-    defaultQuantity: number;
-  }): void {
+  validateAddonQuantities(input: { maxQuantity: number; minQuantity: number; defaultQuantity: number }): void {
     const { maxQuantity, minQuantity, defaultQuantity } = input;
 
     if (minQuantity < 0) {
@@ -132,7 +133,7 @@ export class AddOnValidationService {
   async validateUpdateAddonInput(input: Partial<CreateAddonInput>): Promise<void> {
     // Create a partial schema for updates
     const updateSchema = this.createAddonSchema.partial();
-    
+
     try {
       await updateSchema.parseAsync(input);
     } catch (error) {

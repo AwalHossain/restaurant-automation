@@ -20,7 +20,7 @@ export class AddOnImageService {
   private readonly imageSpecs = {
     width: 400,
     height: 400,
-    maxSize: 2 * 1024 * 1024
+    maxSize: 4 * 1024 * 1024
   };
 
   private readonly addOnValidationService: AddOnValidationService

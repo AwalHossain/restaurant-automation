@@ -1,33 +1,48 @@
-import express from 'express';
-import { AdminAuthRoutes } from '../api/v1/authentication/routes/auth.routes';
-import { campaignRoutes } from '../api/v1/campaign/routes/campaign.routes';
-import { FoodRoutes } from '../api/v1/food/routes/food.routes';
-import { RestaurantRoutes } from '../api/v1/restaurant/routes/restaurant.routes';
+import express from "express";
+import { AdminAuthRoutes } from "../api/v1/authentication/routes/auth.routes";
+import { campaignRoutes } from "../api/v1/campaign/routes/campaign.routes";
+import { AddonRoutes } from "../api/v1/food/routes/addon.routes";
+import { CategoryRoutes } from "../api/v1/food/routes/category.routes";
+import { FoodRoutes } from "../api/v1/food/routes/food.routes";
+import { VariantRoutes } from "../api/v1/food/routes/variant.routes";
+import { RestaurantRoutes } from "../api/v1/restaurant/routes/restaurant.routes";
 
 const router = express.Router();
 
 // Define the interface for module routes
 interface ModuleRoute {
   path: string;
-  route: express.Router ;
+  route: express.Router;
 }
 
 // Create array of module routes
 const moduleRoutes: ModuleRoute[] = [
   {
-    path: '/auth',
+    path: "/auth",
     route: AdminAuthRoutes
   },
   {
-    path: '/food',
+    path: "/food",
     route: FoodRoutes
   },
   {
-    path: '/restaurant',
+    path: "/category",
+    route: CategoryRoutes
+  },
+  {
+    path: "/addon",
+    route: AddonRoutes
+  },
+  {
+    path: "/variant",
+    route: VariantRoutes
+  },
+  {
+    path: "/restaurant",
     route: RestaurantRoutes
   },
   {
-    path: '/campaign',
+    path: "/campaign",
     route: campaignRoutes
   }
   // Add more routes as needed

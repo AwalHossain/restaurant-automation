@@ -209,6 +209,7 @@ model Food {
   updatedBy     User?          @relation("FoodUpdater", fields: [updatedById], references: [id])
   updatedById   String?
   priceHistory  PriceHistory[]
+  promotions    Promotion[]
 
   cartItems CartItem[]
   deletedAt DateTime? // Soft delete
@@ -706,6 +707,9 @@ model Promotion {
   branch      Branch?       @relation(fields: [branchId], references: [id])
  
  userRedemption UserPromotion[]  //track user redemption
+
+//  relation with food
+foods Food[]
  
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

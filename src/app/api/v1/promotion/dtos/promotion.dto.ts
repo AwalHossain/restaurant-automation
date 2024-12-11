@@ -15,6 +15,7 @@ export interface CreatePromotionDto {
   excludedItems?: any;
   priority?: number;
   branchId?: string;
+  foods?: string[];
   images?: {
     url: string;
     deviceType: "MOBILE" | "TABLET" | "DESKTOP";

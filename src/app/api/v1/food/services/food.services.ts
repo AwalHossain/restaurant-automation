@@ -236,9 +236,9 @@ export class FoodService {
         categories: true,
         branches: true,
         campaign: true,
-        addonGroups: {
+        addons: {
           include: {
-            addonGroup: {
+            AddonGroup: {
               include: {
                 addons: {
                   include: {
@@ -295,9 +295,9 @@ export class FoodService {
         variants: true,
         categories: true,
         branches: true,
-        addonGroups: {
+        addons: {
           include: {
-            addonGroup: true
+            AddonGroup: true
           }
         },
         campaign: true
@@ -357,9 +357,9 @@ export class FoodService {
           }
         },
         branches: true,
-        addonGroups: {
+        addons: {
           include: {
-            addonGroup: true
+            AddonGroup: true
           }
         },
         campaign: true
@@ -440,9 +440,9 @@ export class FoodService {
           }
         },
         branches: true,
-        addonGroups: {
+        addons: {
           include: {
-            addonGroup: {
+            AddonGroup: {
               include: {
                 addons: {
                   include: {

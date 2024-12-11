@@ -31,6 +31,18 @@ export class PromotionController {
       data: resulty
     });
   });
+
+
+  getPromotionFoods = catchAsync(async (req: Request, res: Response) => {
+    const { promotionId } = req.params;
+    const result = await this.promotionService.getPromotionFoods(promotionId);
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: "Promotion foods retrieved successfully",
+      data: result
+    });
+  });
+
   updatePromotion = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
     const image = req.file;

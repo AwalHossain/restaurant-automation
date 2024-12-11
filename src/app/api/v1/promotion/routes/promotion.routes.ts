@@ -30,6 +30,8 @@ router.post(
   promotionController.createPromotion
 );
 
+router.get("/foods/:promotionId", promotionController.getPromotionFoods);
+
 router.patch(
   "/update/:id",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
@@ -54,6 +56,7 @@ router.get("/user/history", auth(ENUM_USER_ROLE.CUSTOMER), promotionController.g
 router.get(
   "/check-eligibility/:promotionId",
   auth(ENUM_USER_ROLE.CUSTOMER),
+  
   promotionController.checkPromotionEligibility
 );
 

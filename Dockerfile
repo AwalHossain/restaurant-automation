@@ -1,12 +1,10 @@
-# Use Node.js Alpine base image
 FROM node:18-alpine
 
 # Add dependencies for Prisma and health check
 RUN apk add --no-cache \
-    curl \
     openssl \
-    libc6-compat \
-    libssl1.1
+    curl \
+    && rm -rf /var/cache/apk/*
 
 # Create app directory
 WORKDIR /app

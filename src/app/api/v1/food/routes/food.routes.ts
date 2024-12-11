@@ -2,6 +2,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
+import { userContextMiddleware } from "../../../../../middlewares/user-context.middleware";
 import auth from "../../../../middlewares/auth";
 import { ControllerFactory, VariantControllerFactory } from "../factories/controller.factory";
 
@@ -15,10 +16,9 @@ const upload = multer({
 const router = Router();
 
 const foodController = ControllerFactory.createFoodController();
-const categoryController = ControllerFactory.createCategoryController();
-const addonController = ControllerFactory.createAddonController();
 const variantController = VariantControllerFactory.createVariantController();
 
+// food routes
 router.post(
   "/create",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
@@ -35,45 +35,21 @@ router.patch(
 router.get("/all", foodController.getAllFoods);
 router.get("/main-category/:id", foodController.getFoodByMainCategoryId);
 router.get("/sub-category/:id", foodController.getFoodBySubCategoryId);
+router.get("/category/:id", foodController.getFoodByCategoryId);
+router.post("/step/variant/create", foodController.addVariants);
+router.post(
+  "/step/addon/create",
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  userContextMiddleware,
+  foodController.addAddonGroups
+);
 
-// category routes
-router.post("/category/create", categoryController.createCategory);
-router.get("/category/all", categoryController.getAllCategories);
-router.get("/category/:id", categoryController.getCategoryWithChildren);
 router.get("/:id", foodController.getFoodById);
 
-router.post(
-  "/category/add-sub",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  categoryController.addSubCategory
-);
-router.patch(
-  "/category/update",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  categoryController.updateCategoryWithSubs
-);
+// category routes
 
 // Addon routes
-router.post(
-  "/addon/create",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  upload.single("image"),
-  addonController.createAddon
-);
-router.post(
-  "/addon/group/create",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  addonController.createAddOnGroup
-);
-router.get("/addon/all", addonController.getAddOns);
-router.get("/addon/group/all", addonController.getAddOnGroups);
-router.get("/addon/group/:id", addonController.getAddOnGroupById);
-router.patch("/addon/group/:id", addonController.updateAddOnGroup);
-router.delete("/addon/group/:id", addonController.deleteAddOnGroup);
 
 // variant routes
-router.post("/variant/create/:foodId", variantController.bulkUpdateVariants);
-router.get("/variant/all/:foodId", variantController.getVariantsByFoodId);
-router.patch("/variant/update/:variantId", variantController.updateVariant);
 
 export const FoodRoutes = router;

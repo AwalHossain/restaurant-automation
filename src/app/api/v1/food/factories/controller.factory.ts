@@ -10,11 +10,12 @@ import { FoodService } from "../services/food.services";
 import { VariantService } from "../services/variants.service";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 import { CategoryValidationService } from "../validation/category-validation.service";
+import { FoodValidationService } from "../validation/food-validation.service";
 import { VariantValidationService } from "../validation/variant-validation.service";
 
 export class ControllerFactory {
   static createAddonController() {
-    const addOnService = new AddOnService();
+    const addOnService = new AddOnService(new AddOnValidationService());
     const addOnImageService = new AddOnImageService();
     const addOnValidationService = new AddOnValidationService();
 
@@ -22,7 +23,14 @@ export class ControllerFactory {
   }
 
   static createFoodController() {
-    const foodService = new FoodService();
+    // First, create services with their own dependencies
+    const addOnValidationService = new AddOnValidationService();
+    const addOnService = new AddOnService(addOnValidationService);
+
+    const variantValidationService = new VariantValidationService();
+    const variantService = new VariantService(variantValidationService);
+
+    const foodService = new FoodService(new FoodValidationService(), variantService, addOnService);
     const imageService = new ImageService();
 
     return new FoodController(foodService, imageService);

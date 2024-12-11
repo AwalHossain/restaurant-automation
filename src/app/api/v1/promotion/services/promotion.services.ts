@@ -12,42 +12,18 @@ export class PromotionService {
     // validate all the data
     await this.promotionValidationService.validateCreatePromotion(input);
 
+       // Remove images from input data to avoid Prisma error
+       const { images, ...promotionData } = input;
+
+
     const result = await prisma.promotion.create({
       data: {
-        ...input,
+        ...promotionData,
+        foods: {
+          connect: input?.foods?.map(food => ({ id: food }))
+        },
         promotionBanner: {
-          create: input?.images?.map(image => ({
-            url: image.url,
-            deviceType: image.deviceType,
-            width: image.width,
-            height: image.height,
-            size: image.size
-          }))
-        }
-      },
-      include: {
-        promotionBanner: true,
-        branch: true
-      }
-    });
-  }
-
-  async updatePromotion(id: string, input: Partial<CreatePromotionDto>) {
-    // validate all the data
-    const existingPromotion = await prisma.promotion.findUnique({
-      where: { id }
-    });
-    if (!existingPromotion) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Promotion not found");
-    }
-
-    const result = await prisma.promotion.update({
-      where: { id },
-      data: {
-        ...input,
-        promotionBanner: {
-          deleteMany: {},
-          create: input?.images?.map(image => ({
+          create: images?.map(image => ({
             url: image.url,
             deviceType: image.deviceType,
             width: image.width,
@@ -64,12 +40,81 @@ export class PromotionService {
     return result;
   }
 
+  async updatePromotion(id: string, input: Partial<CreatePromotionDto>) {
+    // validate all the data
+    const existingPromotion = await prisma.promotion.findUnique({
+      where: { id }
+    });
+    if (!existingPromotion) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Promotion not found");
+    }
+
+      // Remove images from input to handle them separately
+      const { images, ...updateData } = input;
+
+     // Prepare the update data
+     const updateObject: any = {
+      ...updateData,
+      foods: input.foods ? {
+        set: input.foods.map(food => ({ id: food }))
+      } : undefined
+    };
+
+    if (images?.length) {
+      updateObject.promotionBanner = {
+        deleteMany: {},
+        create: images.map(image => ({
+          url: image.url,
+          deviceType: image.deviceType,
+          width: image.width,
+          height: image.height,
+          size: image.size
+        }))
+      };
+    }
+
+    const result = await prisma.promotion.update({
+      where: { id },
+      data: updateObject,
+      include: {
+        promotionBanner: true,
+        branch: true
+      }
+    });
+    return result;
+  }
+
+  // Add new method to get foods by promotion
+async getPromotionFoods(promotionId: string) {
+  const promotion = await prisma.promotion.findUnique({
+    where: { id: promotionId, isActive: true, startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+    include: {
+      foods: {
+        include: {
+          foodImages: true,
+          variants: true,
+          categories: true,
+          branches: true,
+          campaign: true,
+          addonGroups: true
+        }
+      }
+    }
+  });
+
+  if (!promotion) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Promotion not found");
+  }
+
+  return promotion.foods;
+}
+
   async getActivePromotions() {
     const now = new Date();
-    return prisma.promotion.findMany({
+    const result = await prisma.promotion.findMany({
       where: {
         isActive: true,
-        startDate: { lte: now },
+        // startDate: { lte: now },
         endDate: { gte: now }
       },
       include: {
@@ -81,10 +126,13 @@ export class PromotionService {
         priority: "desc" // Higher priority promotions first
       }
     });
+    console.log(result,'active promotion');
+    
+    return result;
   }
   async getUpcomingPromotions() {
     const now = new Date();
-    return prisma.promotion.findMany({
+    const result = await prisma.promotion.findMany({
       where: {
         isActive: true,
         startDate: { gt: now } // Start date is in the future
@@ -97,10 +145,11 @@ export class PromotionService {
         priority: "asc" //soonest starting promotions first
       }
     });
+    return result;
   }
 
   async getUserPromotionHistory(userId: string) {
-    return prisma.userPromotion.findMany({
+    const result = await prisma.userPromotion.findMany({
       where: {
         userId
       },
@@ -115,6 +164,7 @@ export class PromotionService {
         lastUsedAt: "desc" // Most recent usage first
       }
     });
+    return result;
   }
 
   async checkPromotionEligibility(userId: string, promotionId: string) {
@@ -133,7 +183,8 @@ export class PromotionService {
 
     // Check if promotion is active
     const now = new Date();
-    if (now < promotion.startDate || now > promotion.endDate || !promotion.isActive) {
+    // now < promotion.startDate ||
+    if ( now > promotion.endDate || !promotion.isActive) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Promotion is not active");
     }
 

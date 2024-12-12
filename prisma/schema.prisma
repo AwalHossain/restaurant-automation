@@ -53,8 +53,8 @@ model User {
   createdAddons Addon[] @relation("AddonCreator") // Changed from Addon
   updatedAddons Addon[] @relation("AddonUpdater") // Changed from Addon
 
-  createdAddonGroups AddonGroup[] @relation("AddonGroupCreator")
-  updatedAddonGroups AddonGroup[] @relation("AddonGroupUpdater")
+  // createdAddonGroups AddonGroup[] @relation("AddonGroupCreator")
+  // updatedAddonGroups AddonGroup[] @relation("AddonGroupUpdater")
 
   cart          Cart[]
   notifications Notification[]
@@ -202,7 +202,8 @@ model Food {
   isActive      Boolean        @default(true)
   categories    Category[]
   variants      FoodVariant[]
-  addonGroups   FoodAddonGroup[]
+  // addonGroups   FoodAddonGroup[]
+  foodAddons FoodAddon[]
   branches      Branch[]       @relation("BranchFood")
   createdBy     User?          @relation("FoodCreator", fields: [createdById], references: [id])
   createdById   String?
@@ -346,6 +347,24 @@ model FoodVariant {
   CartItem     CartItem[]
 }
 
+model FoodAddon {
+  id            String   @id @default(cuid())
+  foodId        String
+  addonId       String
+  maxSelections Int      @default(1)    // Maximum times this addon can be selected
+  isRequired    Boolean  @default(false)
+  displayOrder  Int      @default(0)
+  isActive      Boolean  @default(true)
+  
+  food          Food     @relation(fields: [foodId], references: [id])
+  addon         Addon    @relation(fields: [addonId], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([foodId, addonId])
+}
+
 model Addon {
   id              String           @id @default(cuid())
   name            String
@@ -361,7 +380,8 @@ model Addon {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  groupAddons     AddonToGroup[]
+  // groupAddons     AddonToGroup[]
+  foodAddons FoodAddon[]
 
   createdBy       User             @relation("AddonCreator", fields: [createdById], references: [id])
   createdById     String
@@ -404,49 +424,49 @@ enum AddonCategory {
 // }
 
 // new junction table 
-model FoodAddonGroup {
-  id          String  @id @default(cuid())
-  foodId      String
-  food        Food    @relation(fields: [foodId], references: [id])
-  isRequired   Boolean @default(false)
-  maxSelectionsAllowed Int @default(1)
-  addonGroupId String
-  addonGroup  AddonGroup @relation(fields: [addonGroupId], references: [id])
-}
+// model FoodAddonGroup {
+//   id          String  @id @default(cuid())
+//   foodId      String
+//   food        Food    @relation(fields: [foodId], references: [id])
+//   isRequired   Boolean @default(false)
+//   maxSelectionsAllowed Int @default(1)
+//   addonGroupId String
+//   addonGroup  AddonGroup @relation(fields: [addonGroupId], references: [id])
+// }
 
-model AddonGroup {
-  id                   String      @id @default(cuid())
-  name                 String
-  isRequired           Boolean     @default(false)
-  maxSelectionsAllowed Int         @default(1)
-  description          String?
+// model AddonGroup {
+//   id                   String      @id @default(cuid())
+//   name                 String
+//   isRequired           Boolean     @default(false)
+//   maxSelectionsAllowed Int         @default(1)
+//   description          String?
 
-  foods                FoodAddonGroup[]
-  addons          AddonToGroup[]
+//   foods                FoodAddonGroup[]
+//   addons          AddonToGroup[]
 
-  createdBy            User        @relation("AddonGroupCreator", fields: [createdById], references: [id])
-  createdById          String
-  updatedBy            User        @relation("AddonGroupUpdater", fields: [updatedById], references: [id])
-  updatedById          String
-}
+//   createdBy            User        @relation("AddonGroupCreator", fields: [createdById], references: [id])
+//   createdById          String
+//   updatedBy            User        @relation("AddonGroupUpdater", fields: [updatedById], references: [id])
+//   updatedById          String
+// }
 
 // Junction table with additional configuration
-model AddonToGroup {
-  id          String     @id @default(cuid())
-  addon       Addon      @relation(fields: [addonId], references: [id])
-  addonId     String
-  group       AddonGroup @relation(fields: [groupId], references: [id])
-  groupId     String
+// model AddonToGroup {
+//   id          String     @id @default(cuid())
+//   addon       Addon      @relation(fields: [addonId], references: [id])
+//   addonId     String
+//   group       AddonGroup @relation(fields: [groupId], references: [id])
+//   groupId     String
   
-  // Additional configuration for each addon in this group
-  maxQuantity    Int     @default(1)    // Maximum quantity allowed
-  minQuantity    Int     @default(0)    // Minimum quantity required
-  isRequired     Boolean @default(false) // Is this addon required in this group?
-  extraPrice     Decimal @default(0)     // Special price for this addon in this group
-  displayOrder   Int     @default(0)     // Order in which to display this addon
+//   // Additional configuration for each addon in this group
+//   maxQuantity    Int     @default(1)    // Maximum quantity allowed
+//   minQuantity    Int     @default(0)    // Minimum quantity required
+//   isRequired     Boolean @default(false) // Is this addon required in this group?
+//   extraPrice     Decimal @default(0)     // Special price for this addon in this group
+//   displayOrder   Int     @default(0)     // Order in which to display this addon
 
-  @@unique([addonId, groupId])
-}
+//   @@unique([addonId, groupId])
+// }
 
 model PriceHistory {
   id          String       @id @default(cuid())

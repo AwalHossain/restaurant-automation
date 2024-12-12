@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cm4j9z9ey0001jfsc5z1csf0s",
+    "name": "Biryanis",
+    "description": null,
+    "parentId": null,
+    "createdAt": "2024-12-11T02:32:38.506Z",
+    "updatedAt": "2024-12-11T02:32:38.506Z",
+    "isActive": true
+  },
+  {
+    "id": "cm4ja0hra0004jfsclth8d9hg",
+    "name": "Premium Biryanis",
+    "description": null,
+    "parentId": "cm4j9z9ey0001jfsc5z1csf0s",
+    "createdAt": "2024-12-11T02:33:35.974Z",
+    "updatedAt": "2024-12-11T02:33:35.974Z",
+    "isActive": true
+  },
+  {
+    "id": "cm4ja1nl90006jfscf6bhgo1f",
+    "name": "Kebabs",
+    "description": null,
+    "parentId": null,
+    "createdAt": "2024-12-11T02:34:30.189Z",
+    "updatedAt": "2024-12-11T02:34:30.189Z",
+    "isActive": true
+  },
+  {
+    "id": "cm4jizyp40001ts1ogp189i4f",
+    "name": "Regular Burger",
+    "description": null,
+    "parentId": null,
+    "createdAt": "2024-12-11T06:45:07.816Z",
+    "updatedAt": "2024-12-11T17:06:04.561Z",
+    "isActive": true
+  }
+]

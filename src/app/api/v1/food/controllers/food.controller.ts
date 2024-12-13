@@ -50,16 +50,7 @@ export class FoodController {
     });
   });
 
-  // add addon groups
-  addAddonGroups = catchAsync(async (req: Request, res: Response) => {
-    const { addonGroups, foodId } = req.body;
-    const result = await this.foodService.addFoodAddonGroups(foodId, addonGroups);
-    return res.status(201).json({
-      success: true,
-      message: "Addon groups added successfully",
-      data: result
-    });
-  });
+
 
   updateFoodDetails = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;

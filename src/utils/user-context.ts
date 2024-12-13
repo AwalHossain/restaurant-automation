@@ -11,5 +11,11 @@ export function getUserContext() {
 
 export function getCurrentUserId() {
   const context = getUserContext();
-  return context;
+  if (!context.userId) {
+    throw new Error("User ID not found in context");
+  }
+  return {
+    userId: context.userId,
+    role: context.user?.role
+  };
 }

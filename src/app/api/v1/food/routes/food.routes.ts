@@ -2,7 +2,6 @@
 import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
-import { userContextMiddleware } from "../../../../../middlewares/user-context.middleware";
 import auth from "../../../../middlewares/auth";
 import { ControllerFactory, VariantControllerFactory } from "../factories/controller.factory";
 
@@ -37,12 +36,12 @@ router.get("/main-category/:id", foodController.getFoodByMainCategoryId);
 router.get("/sub-category/:id", foodController.getFoodBySubCategoryId);
 router.get("/category/:id", foodController.getFoodByCategoryId);
 router.post("/step/variant/create", foodController.addVariants);
-router.post(
-  "/step/addon/create",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  userContextMiddleware,
-  foodController.addAddonGroups
-);
+// router.post(
+//   "/step/addon/create",
+//   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+//   userContextMiddleware,
+//   foodController.addAddonGroups
+// );
 
 router.get("/:id", foodController.getFoodById);
 

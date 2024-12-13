@@ -1,25 +1,25 @@
 import httpStatus from "http-status";
 import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
-import { getCurrentUserId } from "../../../../../utils/user-context";
-import { CreateAddonGroupInput } from "../dtos/addon.dto";
+
 import { CreateFoodInput } from "../dtos/food.dto";
 import { CreateVariantInput } from "../dtos/variants.dto";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 import { FoodValidationService } from "../validation/food-validation.service";
 import { VariantValidationService } from "../validation/variant-validation.service";
-import { AddOnService } from "./addon.service";
+
+import { AddonService } from "./addon.service";
 import { VariantService } from "./variants.service";
 
 export class FoodService {
   constructor(
     private readonly foodValidationService: FoodValidationService,
     private readonly variantService: VariantService,
-    private readonly addonService: AddOnService
+    private readonly addonService: AddonService
   ) {
     this.foodValidationService = foodValidationService;
     this.variantService = new VariantService(new VariantValidationService());
-    this.addonService = new AddOnService(new AddOnValidationService());
+    this.addonService = new AddonService(new AddOnValidationService());
   }
 
   // async createFood(input: CreateFoodInput) {
@@ -126,49 +126,16 @@ export class FoodService {
   }
 
   // step 3: add food addon groups
-  async addFoodAddonGroups(foodId: string, addonGroups: Array<Omit<CreateAddonGroupInput, "foodId">>) {
-    try {
-      const { userId } = getCurrentUserId();
+  // async addFoodAddons(foodId: string, input: CreateBulkFoodAddonsInput) {
+  //   try {
+  //     const { userId } = getCurrentUserId();
 
-      // Separate groups
-      const existingAddonGroups = addonGroups.filter(group => group.addonGroupId);
-      const newGroups = addonGroups.filter(group => !group.addonGroupId);
-
-      console.log("Processing groups:", {
-        existing: existingAddonGroups.length,
-        new: newGroups.length
-      });
-
-      // Handle existing groups
-      const existingGroupPromises = existingAddonGroups.map(group =>
-        this.addonService.connectAddonGroupToFood(foodId, group.addonGroupId!, {
-          isRequired: group.isRequired,
-          maxSelectionsAllowed: group.maxSelectionsAllowed,
-          updatedById: userId
-        })
-      );
-
-      // Handle new groups
-      const newGroupPromise =
-        newGroups.length > 0
-          ? this.addonService.createAddOnGroupForFood(foodId, newGroups, userId)
-          : Promise.resolve([]);
-
-      // Wait for all operations to complete
-      const [existingResults, newResults] = await Promise.all([Promise.all(existingGroupPromises), newGroupPromise]);
-
-      console.log("Results:", {
-        existing: existingResults.length,
-        new: Array.isArray(newResults) ? newResults.length : 0
-      });
-
-      // Combine and return results
-      return [...existingResults, ...(Array.isArray(newResults) ? newResults : [newResults])];
-    } catch (error) {
-      console.error("Error in addFoodAddonGroups:", error);
-      throw error;
-    }
-  }
+  //     const createdFoodAddons = await this.addonService.createBulkFoodAddons(input);
+  //   } catch (error) {
+  //     console.error("Error in addFoodAddonGroups:", error);
+  //     throw error;
+  //   }
+  // }
 
   async updateFoodDetails(input: CreateFoodInput) {
     const updatedFood = await prisma.food.update({
@@ -236,19 +203,7 @@ export class FoodService {
         categories: true,
         branches: true,
         campaign: true,
-        addonGroups : {
-          include: {
-            addonGroup: {
-              include: {
-                addons: {
-                  include: {
-                    addon: true
-                  }
-                }
-              }
-            }
-          }
-        }
+        foodAddons: true
       }
     });
     return food;
@@ -295,11 +250,7 @@ export class FoodService {
         variants: true,
         categories: true,
         branches: true,
-        addonGroups: {
-          include: {
-            addonGroup: true
-          }
-        },
+        foodAddons: true,
         campaign: true
       }
     });
@@ -357,11 +308,7 @@ export class FoodService {
           }
         },
         branches: true,
-        addonGroups: {
-          include: {
-            addonGroup: true
-          }
-        },
+        foodAddons: true,
         campaign: true
       }
     });
@@ -440,19 +387,7 @@ export class FoodService {
           }
         },
         branches: true,
-        addonGroups: {
-          include: {
-            addonGroup: {
-              include: {
-                addons: {
-                  include: {
-                    addon: true
-                  }
-                }
-              }
-            }
-          }
-        },
+        foodAddons: true,
         campaign: true
       }
     });

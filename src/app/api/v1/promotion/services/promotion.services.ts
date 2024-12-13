@@ -96,7 +96,7 @@ async getPromotionFoods(promotionId: string) {
           categories: true,
           branches: true,
           campaign: true,
-          addonGroups: true
+          foodAddons: true
         }
       }
     }

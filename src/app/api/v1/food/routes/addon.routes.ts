@@ -1,7 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
-import { userContextMiddleware } from "../../../../../middlewares/user-context.middleware";
 import auth from "../../../../middlewares/auth";
 import { ControllerFactory } from "../factories/controller.factory";
 
@@ -15,23 +14,71 @@ const upload = multer({
 });
 
 const router = Router();
-router.post(
-  "/create",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  userContextMiddleware,
-  upload.single("image"),
-  addonController.createAddon
+
+// Standalone Addon Routes
+router
+  .route('/')
+  .post(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+    upload.single("image"),
+    addonController.createAddon
+  )
+  .get(addonController.getAddOns);
+
+    // Get all food-addon relationships
+router.get('/food-addons', addonController.getAllFoodAddons);
+
+
+router
+  .route('/:id')
+  .get(addonController.getAddOnById)
+  .patch(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    upload.single("image"),
+    addonController.updateAddOn
+  )
+  // .delete(
+  //   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  //   addonController.
+  // );
+
+
+// Get active food-addon relationships
+router.get('/food-addons/active', addonController.getAllFoodAddons);
+
+
+// Status toggle for standalone addon
+router.patch(
+  '/:id/toggle',
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  addonController.toggleAddOn
 );
-// router.post(
-//   "/addon/group/create",
-//   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-//   userContextMiddleware,
-//   addonController.createAddOnGroup
-// );
-router.get("/all", addonController.getAddOns);
-router.get("/group/all", addonController.getAddOnGroups);
-router.get("/group/:id", addonController.getAddOnGroupById);
-router.patch("/group/:id", addonController.updateAddOnGroup);
-router.delete("/group/:id", addonController.deleteAddOnGroup);
+
+// Food-Addon Relationship Routes
+router
+  .route('/food/:foodId/addons')
+  .post(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+    addonController.createBulkFoodAddons
+  )
+  .get(addonController.getFoodAddonsByFoodId);
+
+router
+  .route('/food/:foodId/addon/:addonId')
+  .patch(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    addonController.updateFoodAddon
+  )
+  .delete(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    addonController.deleteFoodAddon
+  );
+
+// Status toggle for food-addon relationship
+router.patch(
+  '/food/:foodId/addon/:addonId/toggle',
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  addonController.toggleFoodAddOn
+);
 
 export const AddonRoutes = router;

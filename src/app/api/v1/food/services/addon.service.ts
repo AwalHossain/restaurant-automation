@@ -1,18 +1,15 @@
+import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
-import { getCurrentUserId } from "../../../../../utils/user-context";
-import { CreateAddonGroupInput, CreateAddonInput, UpdateAddonGroupInput, UpdateAddonInput } from "../dtos/addon.dto";
+import { CreateAddonInput, CreateBulkFoodAddonsInput, CreateFoodAddonInput, UpdateAddonInput, UpdateFoodAddonInput } from "../dtos/addon.dto";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 
-export class AddOnService {
+export class AddonService {
   constructor(private readonly addOnValidationService: AddOnValidationService) {
     this.addOnValidationService = addOnValidationService;
   }
 
   async createAddOn(input: CreateAddonInput) {
-    const { userId } = getCurrentUserId();
-    input.createdById = userId;
-    input.updatedById = userId;
-    await this.addOnValidationService.validateCreateAddonInput(input);
+
 
     const addon = await prisma.addon.create({
       data: {
@@ -27,12 +24,12 @@ export class AddOnService {
         nutritionInfo: input.nutritionInfo,
         createdBy: {
           connect: {
-            id: userId
+            id: input.createdById
           }
         },
         updatedBy: {
           connect: {
-            id: userId
+            id: input.updatedById
           }
         }
       },
@@ -51,184 +48,173 @@ export class AddOnService {
     return addon;
   }
 
-  async createAddOnGroupForFood(
-    foodId: string,
-    addonGroups: Array<Omit<CreateAddonGroupInput, "foodId">>,
-    userId: string
-  ) {
-    const addonGroupsWithFoodId = addonGroups.map(addonGroup => ({
-      ...addonGroup,
-      foodId
-    }));
-
-    // validate all addon groups
-    await Promise.all(
-      addonGroupsWithFoodId.map(addonGroup => this.addOnValidationService.validateCreateAddonGroupInput(addonGroup))
-    );
-
-    console.log(addonGroupsWithFoodId, "addonGroupsWithFoodId");
-
-    // create all addon groups
-    const createdAddonGroups = await prisma.$transaction(async tx => {
-      return await Promise.all(
-        addonGroups.map(async addonGroup => {
-          return await tx.addonGroup.create({
-            data: {
-              name: addonGroup.name,
-              isRequired: addonGroup.isRequired,
-              maxSelectionsAllowed: addonGroup.maxSelectionsAllowed,
-              description: addonGroup.description,
-              // create the addon relation
-              addons: {
-                create: addonGroup.addons.map(addon => ({
-                  addon: {
-                    connect: {
-                      id: addon.addonId
-                    }
-                  },
-                  minQuantity: addon.minQuantity,
-                  maxQuantity: addon.maxQuantity,
-                  isRequired: addon.isRequired,
-                  extraPrice: addon.extraPrice,
-                  displayOrder: addon.displayOrder
-                }))
-              },
-              createdBy: {
-                connect: {
-                  id: userId
-                }
-              },
-              updatedBy: {
-                connect: {
-                  id: userId
-                }
-              },
-              // create the relation with food through junction table
-              foods: {
-                create: {
-                  food: {
-                    connect: {
-                      id: foodId
-                    }
-                  },
-                  isRequired: addonGroup.isRequired,
-                  maxSelectionsAllowed: addonGroup.maxSelectionsAllowed
-                }
-              }
-            },
-            include: {
-              addons: {
-                include: {
-                  addon: true
-                }
-              }
-            }
-          });
+  async createBulkFoodAddons(input: CreateBulkFoodAddonsInput) {
+    const {foodId, addons} = input;
+    console.log(addons, "addons", foodId);
+    const createdFoodAddons = await prisma.$transaction(async (tx) => {
+     const results = await Promise.all(
+      addons.map(async (addon:CreateFoodAddonInput) => {
+        return tx.foodAddon.createMany({
+          data: {
+           foodId:foodId,
+           addonId:addon.addonId,
+           maxSelections: addon.maxSelections,
+           isRequired: addon.isRequired || false,
+           isActive: addon.isActive || true,
+           displayOrder: addon.displayOrder || 0,
+          }
         })
-      );
-    });
-    console.log(createdAddonGroups, "createdAddonGroups");
-    return createdAddonGroups;
+      })
+     )
+     return results;
+    })
+    return createdFoodAddons;
   }
 
-  // helper method to connet existing addoonGroup to food
-  async connectAddonGroupToFood(
-    foodId: string,
-    addonGroupId: string,
-    config: { isRequired: boolean; maxSelectionsAllowed: number; updatedById: string }
-  ) {
-    const foodAddonGroup = await prisma.foodAddonGroup.create({
-      data: {
-        food: {
-          connect: {
-            id: foodId
-          }
-        },
-        addonGroup: {
-          connect: {
-            id: addonGroupId
-          }
-        },
-        isRequired: config.isRequired,
-        maxSelectionsAllowed: config.maxSelectionsAllowed
-      },
-      include: {
-        addonGroup: {
-          include: {
-            addons: {
-              include: {
-                addon: true
-              }
-            }
-          }
-        }
-      }
-    });
-    return foodAddonGroup;
-  }
 
   async getAddOns() {
-    const addons = await prisma.addon.findMany();
+    const addons = await prisma.addon.findMany({
+      where:{
+        isActive:true
+      },
+      include:{
+        createdBy:true
+      }
+    });
     return addons;
   }
 
-  async getAddonGroups() {
-    const addonGroups = await prisma.addonGroup.findMany({
-      include: {
-        addons: {
-          include: {
-            addon: true
-          }
-        }
+  async getAllFoodAddons() {
+    const foodAddons = await prisma.foodAddon.findMany({
+      where:{
+        isActive:true
+      },
+      include:{
+        addon:true,
+        food:true
       }
     });
-    return addonGroups;
+    console.log(foodAddons, "all food addons");
+    
+    return foodAddons;
   }
 
-  async getAddOnById(id: string) {
-    const addon = await prisma.addon.findUnique({
-      where: { id }
-    });
-    return addon;
-  }
 
-  async updateAddOn(id: string, input: UpdateAddonInput) {
+  async updateAddOn( input: UpdateAddonInput) {
+    const {id} = input;
     await this.addOnValidationService.validateUpdateAddonInput(input);
+
+
     const addon = await prisma.addon.update({
-      where: { id },
+      where: { id,
+        isActive:true
+       },
       data: input
     });
     return addon;
   }
 
-  async getAddonGroupById(id: string) {
-    const addonGroup = await prisma.addonGroup.findUnique({
-      where: { id }
+  async getAddOnById(id: string) {
+    const addon = await prisma.addon.findUnique({
+      where: { id,
+        isActive:true
+       }
     });
-    return addonGroup;
+    return addon;
   }
 
-  async updateAddonGroup(id: string, input: UpdateAddonGroupInput) {
-    const addonGroup = await prisma.addonGroup.update({
-      where: { id },
-      data: {
-        name: input.name,
-        isRequired: input.isRequired,
-        maxSelectionsAllowed: input.maxSelectionsAllowed,
-        description: input.description
+  // toggle add on active status
+  async toggleAddOnActiveStatus(id: string) {
+
+    // check the addon first 
+    const addon = await prisma.addon.findUnique({
+      where: { 
+        id,
+       }
+    });
+    if(!addon) throw new ApiError(404, "Addon not found");
+
+    const updatedAddon = await prisma.addon.update({
+      where: { 
+        id,
+       },
+      data: { isActive:{
+        set: !addon.isActive
+      } }
+    });
+    return updatedAddon;
+  }
+
+  // delete add on
+  async deleteFoodAddon(foodId:string,addonId:string){
+    const foodAddon = await prisma.foodAddon.delete({
+      where: {
+       foodId_addonId:{
+        foodId,
+        addonId
+       }
       }
     });
-    return addonGroup;
+    console.log(foodAddon, "foodAddon");
+    return foodAddon;
   }
 
-  async deleteAddonGroup(id: string) {
-    await prisma.addonToGroup.deleteMany({
-      where: { groupId: id }
-    });
+  // update food addon
+  async updateFoodAddon(input:UpdateFoodAddonInput){
+    const {foodId,addonId} = input;
 
-    const addonGroup = await prisma.addonGroup.delete({
-      where: { id }
+    const foodAddon = await prisma.foodAddon.update({
+      where: {
+        foodId_addonId:{
+          foodId,
+          addonId
+        }
+      },
+      data: input
     });
-    return addonGroup;
+    return foodAddon;
   }
+
+  // get food addons
+  async getFoodAddons(foodId:string){
+    const foodAddons = await prisma.foodAddon.findMany({
+      where: { 
+        foodId,
+        isActive:true,
+       },
+       include:{
+        addon:true
+       },
+       orderBy:{
+        displayOrder: "asc"
+       }
+    });
+    return foodAddons;
+  }
+
+  async toogleFoodAddonActiveStatus(foodId:string,addonId:string){
+    const foodAddon = await prisma.foodAddon.findUnique({
+      where:{
+        foodId_addonId:{
+          foodId,
+          addonId
+        }
+      }
+    })
+
+    if(!foodAddon) throw new ApiError(404, "Food addon not found");
+
+    const updatedFoodAddon = await prisma.foodAddon.update({
+      where:{
+        foodId_addonId:{
+          foodId,
+          addonId
+        }
+      },
+      data:{isActive:{set:!foodAddon.isActive}}
+    })
+    return updatedFoodAddon;
+  }
+
+
 }

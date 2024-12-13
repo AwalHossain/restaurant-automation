@@ -1,9 +1,15 @@
 import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
-import { CreateAddonGroupInput, CreateAddonInput } from "../dtos/addon.dto";
+import { CreateAddonInput } from "../dtos/addon.dto";
 
 // Input type definitions
+type BulkAddonInput = {
+  addonId: string;
+  maxSelections?: number;
+  isRequired?: boolean;
+  displayOrder?: number;
+};
 
 export class AddOnValidationService {
   // Validation schema for addon creation
@@ -76,26 +82,7 @@ export class AddOnValidationService {
     }
   }
 
-  // Validation method for addon group with its addons
-  async validateCreateAddonGroupInput(input: CreateAddonGroupInput): Promise<void> {
-    try {
-      // name validation
-      if (!input.name || input.name.trim() === "") {
-        throw new ApiError(httpStatus.BAD_REQUEST, "Addon name is required");
-      }
-      await this.createAddonGroupSchema.parseAsync(input);
-      // check for duplicate addon IDS
-      const uniqueAddonIds = new Set(input.addons.map(addon => addon.addonId));
-      if (uniqueAddonIds.size !== input.addons.length) {
-        throw new ApiError(httpStatus.BAD_REQUEST, "Duplicate addon IDs are not allowed");
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw error;
-      }
-      throw error;
-    }
-  }
+
 
   // Validation for addon price
   validateAddonPrice(price: number): void {
@@ -145,14 +132,23 @@ export class AddOnValidationService {
   }
 
   // Validation for bulk operations
-  validateBulkAddonIds(addonIds: string[]): void {
-    if (!Array.isArray(addonIds)) {
-      throw new ApiError(400, "Invalid addon IDs format");
-    }
+  // Validation for bulk operations
+  validateBulkAddonIds(addonIds: BulkAddonInput[]): void {
+    console.log(addonIds, "addonIds");
     if (addonIds.length === 0) {
-      throw new ApiError(400, "At least one addon ID is required");
+      throw new ApiError(400, "At least one addon is required");
     }
-    if (new Set(addonIds).size !== addonIds.length) {
+    if (!addonIds.every(addon => 
+      typeof addon === 'object' && 
+      'addonId' in addon && 
+      typeof addon.addonId === 'string'
+    )) {
+      throw new ApiError(400, "Invalid addon format - each item must have a valid addonId");
+    }
+    const addonIdSet = new Set(addonIds.map(addon => addon.addonId));
+    // console.log(addonIdSet, "addonIdSet", addonIds.length);
+
+    if (addonIdSet.size !== addonIds.length) {
       throw new ApiError(400, "Duplicate addon IDs are not allowed");
     }
   }

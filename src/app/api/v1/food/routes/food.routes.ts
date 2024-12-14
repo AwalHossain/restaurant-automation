@@ -28,6 +28,7 @@ router.post(
 router.patch(
   "/update/:id",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  upload.single("image"),
   foodController.updateFoodDetails
 );
 

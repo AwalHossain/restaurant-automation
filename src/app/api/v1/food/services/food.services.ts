@@ -168,9 +168,20 @@ export class FoodService {
         trendingEndTime: input.trendingEndTime,
         // Relations
         categories: {
-          connect: input?.categoryIds?.map(id => ({ id }))
+          set: input?.categoryIds?.map(id => ({ id }))
         },
-        updatedById: input.userId
+        updatedById: input.updatedBy,
+        foodImages:{
+          deleteMany:{},
+          create:input.images.map(image=>({
+            url:image.url,
+            deviceType:image.deviceType,
+            width:image.width,
+            height:image.height,
+            size:image.size
+          }))
+        }
+        
       },
       include: {
         foodImages: true,

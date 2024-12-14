@@ -39,14 +39,20 @@ export class ImageService {
 
   
    for(const [deviceType, specs] of Object.entries(this.imageSpecs)) {
-    // 1. Optimize image
-    const optimizedBuffer = await sharp(file.buffer)
-      .resize(specs.width, specs.height, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .webp({ quality: 80 })
-      .toBuffer();
+        // 1. Optimize image with improved cropping
+        const optimizedBuffer = await sharp(file.buffer)
+        .resize(specs.width, specs.height, {
+          fit: 'contain', // Change from 'cover' to 'contain'
+          background: { r: 255, g: 255, b: 255, alpha: 1 }, // White background
+          position: 'center',
+          withoutEnlargement: true // Prevent upscaling
+        })
+        .webp({ 
+          quality: 80,
+          lossless: false,
+          nearLossless: true
+        })
+        .toBuffer();
 
       console.log(optimizedBuffer, 'optimizedBuffer');
     // 2. Upload to Cloudinary

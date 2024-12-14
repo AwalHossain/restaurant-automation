@@ -171,17 +171,18 @@ export class FoodService {
           set: input?.categoryIds?.map(id => ({ id }))
         },
         updatedById: input.updatedBy,
-        foodImages:{
-          deleteMany:{},
-          create:input.images.map(image=>({
-            url:image.url,
-            deviceType:image.deviceType,
-            width:image.width,
-            height:image.height,
-            size:image.size
-          }))
-        }
-        
+        ...(input.images?.length && {
+          foodImages:{
+            deleteMany:{},
+            create:input.images.map(image=>({
+              url:image.url,
+              deviceType: image.deviceType,
+              width: image.width,
+              height: image.height,
+              size: image.size
+            }))
+          }
+        })
       },
       include: {
         foodImages: true,

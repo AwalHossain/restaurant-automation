@@ -25,8 +25,14 @@ router
   )
   .get(addonController.getAddOns);
 
-    // Get all food-addon relationships
+
+// active addons
+router.get('/active', addonController.getActiveAddOns);
+
+// Get all food-addon relationships
 router.get('/food-addons', addonController.getAllFoodAddons);
+// Get active food-addon relationships
+router.get('/food-addons/active', addonController.getActiveAddOns);
 
 
 router
@@ -43,8 +49,7 @@ router
   // );
 
 
-// Get active food-addon relationships
-router.get('/food-addons/active', addonController.getAllFoodAddons);
+
 
 
 // Status toggle for standalone addon

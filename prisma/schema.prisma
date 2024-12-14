@@ -63,6 +63,8 @@ model User {
   Manager       Manager?
   Address       Address[]
   Feedback      Feedback[]
+  userPoints    UserPoints[]
+  checkouts     Checkout[]
 
   updatedRestaurantSettings RestaurantSettings[] @relation("RestaurantSettingsUpdater")
 
@@ -151,8 +153,23 @@ model Branch {
   BusinessHours       BusinessHours[]
   Cart                Cart[]
   Promotion           Promotion[]
+  branchFood          BranchFood[]
+  branchDeliverySettings BranchDeliverySettings[]
+  checkouts           Checkout[]
 }
 
+
+model BranchFood {
+  id          String   @id @default(cuid())
+  branchId    String
+  foodId      String
+  isAvailable Boolean  @default(true)
+  customPrice Decimal? @db.Decimal(10, 2)  // Override base price for this branch
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  food        Food     @relation(fields: [foodId], references: [id])
+
+  @@unique([branchId, foodId])
+}
 model BusinessHours {
   id          String  @id @default(cuid())
   branchId    String
@@ -164,6 +181,16 @@ model BusinessHours {
 
   @@unique([branchId, dayOfWeek])
 }
+
+model BranchDeliverySettings {
+  id                String  @id @default(cuid())
+  branchId          String  @unique
+  branch            Branch  @relation(fields: [branchId], references: [id])
+  baseDeliveryFee   Decimal @db.Decimal(10, 2)
+  deliveryZones     Json?   // Store custom delivery zones and fees
+  maxDeliveryRadius Decimal @db.Decimal(10, 2)
+}
+
 
 model Manager {
   id        String   @id @default(cuid())
@@ -235,6 +262,7 @@ model Food {
   isDefaultImage     Boolean?  @default(false)
   campaignId         String?
   campaign           Campaign? @relation(fields: [campaignId], references: [id])
+  branchFood BranchFood[]
 
   @@index([topSnacks])
   @@index([trending])
@@ -540,6 +568,7 @@ enum OrderType {
   DINE_IN
 }
 
+
 model OrderItem {
   id        String           @id @default(cuid())
   orderId   String
@@ -574,42 +603,122 @@ model Address {
   postalCode String?
   isDefault  Boolean @default(false)
   orders     Order[]
+  checkouts  Checkout[]
 }
 
 model Restaurant {
-  id                 String              @id @default(cuid())
-  name               String
-  domain             String              @unique
-  logo               String?
-  address            String?
-  description        String?
-  socialMediaLinks   Json?
-  ratings            Decimal?            @db.Decimal(3, 2) // Average rating
-  deliveryAreas      Json? // Delivery zones (geospatial data)
-  openDate           DateTime?
-  featured           Boolean             @default(false)
-  branches           Branch[]
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  RestaurantSettings RestaurantSettings?
+  id          String    @id @default(cuid())
+  name        String    // "Burger Palace"
+  domain      String    @unique // "burgerpalace.foodapp.com"
+  logo        String?   // "https://storage.com/logos/burger-palace.png"
+  description String?   // "Best burgers in town since 1995"
+  
+  // Business Info
+  address     String?   // "123 Main Street, Gulshan-1"
+  phoneNumber String?   // "+880171234567"
+  email       String?   // "info@burgerpalace.com"
+  
+  // Rating & Status
+  ratings     Decimal?  @db.Decimal(3, 2) // 4.50 out of 5.00
+  isActive    Boolean   @default(true)    // Restaurant is operating
+  
+  // Social Media - Stored as JSON
+  socialMediaLinks Json? // {
+    // "facebook": "fb.com/burgerpalace",
+    // "instagram": "instagram.com/burgerpalace"
+  // }
+
+  // Relations
+  branches    Branch[]
+  settings    RestaurantSettings?
+  pointsSystem PointsSystem?
+  userPoints   UserPoints[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
+enum restaurantType {
+  FAST_FOOD
+  FINE_DINING
+  CAFE
+}
+
+
+// Restaurant Settings
 model RestaurantSettings {
-  id                      String          @id @default(cuid())
-  restaurantId            String          @unique
-  restaurant              Restaurant      @relation(fields: [restaurantId], references: [id])
-  currency                String          @default("BDT")
-  currencySymbol          String? // Currency symbol
-  timezone                String          @default("Asia/Dhaka")
-  orderNumberPrefix       String?
-  minOrderAmount          Decimal?        @db.Decimal(10, 2)
-  maxOrderAmount          Decimal?        @db.Decimal(10, 2)
-  deliveryFee             Decimal?        @db.Decimal(10, 2)
-  taxPercentage           Decimal?        @db.Decimal(10, 2)
-  paymentMethods          Json? // List of supported payment methods
-  deliveryTimeEstimate    Int? // Estimated delivery time in minutes
-  customerSupportEmail    String?
+  id                      String    @id @default(cuid())
+  restaurantId            String    @unique
+  restaurant              Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  // Basic Settings
+  currency                String    @default("BDT")
+  currencySymbol          String    @default("৳")
+  timezone                String    @default("Asia/Dhaka")
+  
+  // Delivery Settings
+  baseDeliveryFee        Decimal?  @db.Decimal(10, 2)
+  deliveryFeeCalculationType DeliveryFeeType @default(FIXED)
+  
+  // Distance-based delivery fees
+  distanceBasedFees      Json?     // Example:
+
+  //   "baseFee": 50,
+  //   "perKmCharge": 10,
+  //   "ranges": [
+  //     {"minKm": 0, "maxKm": 2, "fee": 60},
+  //     {"minKm": 2, "maxKm": 5, "fee": 80},
+  //     {"minKm": 5, "maxKm": 8, "fee": 120}
+  //   ]
+  // } */
+
+  // // Zone-based delivery fees
+  zoneBasedFees          Json?     // Example:
+
+  //   "zones": [
+  //     {
+  //       "name": "Gulshan",
+  //       "fee": 50,
+  //       "estimatedTime": "30-45"
+  //     },
+  //     {
+  //       "name": "Banani",
+  //       "fee": 70,
+  //       "estimatedTime": "40-55"
+  //     },
+  //     {
+  //       "name": "Dhanmondi",
+  //       "fee": 100,
+  //       "estimatedTime": "45-60"
+  //     }
+  //   ]
+  // } 
+
+  minOrderForFreeDelivery Decimal? @db.Decimal(10, 2)
+  maxDeliveryDistance    Decimal?  @db.Decimal(10, 2)
+  
+  // Order Settings
+  minOrderAmount         Decimal?  @db.Decimal(10, 2)
+  maxOrderAmount         Decimal?  @db.Decimal(10, 2)
+  taxPercentage         Decimal   @db.Decimal(5, 2)
+  serviceChargePercent  Decimal?  @db.Decimal(5, 2)
+  
+  // Checkout Settings
+  allowGuestCheckout     Boolean   @default(false)
+  requirePhoneNumber     Boolean   @default(true)
+  requireEmail          Boolean   @default(false)
+  
+  // Order Types
+  takeoutEnabled        Boolean   @default(true)
+  takeoutServiceCharge  Decimal?  @db.Decimal(5, 2)
+  dineInEnabled        Boolean   @default(true)
+  dineInServiceCharge  Decimal?  @db.Decimal(5, 2)
+  
+  // Messages
+  globalMessage         String?
+  globalMessageEnabled  Boolean   @default(false)
+
+
+   customerSupportEmail    String?
   restaurantType          restaurantType? // E.g., "Fast Food", "Fine Dining"
   serviceChargePercentage Decimal?        @db.Decimal(5, 2)
   acceptsPreorders        Boolean         @default(false)
@@ -624,12 +733,154 @@ model RestaurantSettings {
   lastUpdatedById         String?
   timezoneOffset          Int? // Numeric offset for timezone
   updatedAt               DateTime        @updatedAt
+  
 }
 
-enum restaurantType {
-  FAST_FOOD
-  FINE_DINING
-  CAFE
+// Points System
+model PointsSystem {
+  id                  String    @id @default(cuid())
+  restaurantId        String    @unique
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  // Basic Settings
+  isEnabled           Boolean   @default(false)
+  pointsRate          Decimal   @db.Decimal(10, 2)  // 1.00 (1 point per 100 bdt currency)
+  redemptionRate      Decimal   @db.Decimal(10, 2)  // 0.50 (0.50 bdt per point)
+  
+  // Limits
+  minPointsRedeem     Int       @default(100) // minimum points to redeem
+  maxPointsRedeem     Int? // maximum points to redeem
+  minSpendForPoints   Decimal?  @db.Decimal(10, 2) // minimum spend to earn points
+  
+  // Expiry Settings
+  pointsExpiry        Int?      // Days until points expire
+  
+  // Relations
+  userPoints          UserPoints[]
+}
+
+model UserPoints {
+  id                  String    @id @default(cuid())
+  userId              String
+  restaurantId        String
+  points              Int       @default(0)  // current points 150
+  
+  // Tracking
+  totalPointsEarned   Int       @default(0)  // total points earned 200
+  totalPointsRedeemed Int       @default(0)  // total points redeemed 50
+  lastEarnedAt        DateTime?
+  lastRedeemedAt      DateTime?
+  pointsExpiryDate    DateTime?
+  
+  // Relations
+  user                User      @relation(fields: [userId], references: [id])
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id])
+  pointsSystem        PointsSystem? @relation(fields: [pointsSystemId], references: [id])
+  pointsSystemId      String?
+  pointsHistory       PointsHistory[]
+
+
+  @@unique([userId, restaurantId])
+}
+
+model PointsHistory {
+  id                  String    @id @default(cuid())
+  userPointsId        String
+  userPoints          UserPoints @relation(fields: [userPointsId], references: [id])
+
+
+  type                PointsTransactionType // EARNED, REDEEMED, EXPIRED, ADJUSTED
+  points              Int      // amount of points 100
+  orderId             String?  // checkout id or order id
+  description         String?  // Points earned for order #SK2395303434f3
+ 
+  createdAt           DateTime  @default(now())
+}
+
+model Checkout {
+  id                  String    @id @default(cuid())
+  orderNumber         String    @unique
+  
+  // Relations
+  userId              String?
+  user                User?     @relation(fields: [userId], references: [id])
+  branchId            String
+  branch              Branch    @relation(fields: [branchId], references: [id])
+  
+  // Order Details
+  orderType           OrderType  // DELIVERY, TAKEAWAY, DINE_IN
+  status              CheckoutStatus @default(PENDING)
+  
+  // Price Breakdown
+  subtotal            Decimal   @db.Decimal(10, 2)  // total price of the order 600
+  deliveryFee         Decimal   @db.Decimal(10, 2)  // delivery fee 50
+  serviceCharge       Decimal   @db.Decimal(10, 2)  // service charge 10
+  tax                 Decimal   @db.Decimal(10, 2)  // tax 10
+  discount            Decimal   @db.Decimal(10, 2)  // discount 10
+  pointsDiscount      Decimal   @db.Decimal(10, 2)  // 10 points discount
+  total               Decimal   @db.Decimal(10, 2)  // total price 650
+  
+  // Points
+  // pointsSystemId      String?
+  // pointsSystem        PointsSystem? @relation(fields: [pointsSystemId], references: [id])
+  // userPointsId        String?
+  // userPoints          UserPoints? @relation(fields: [userPointsId], references: [id])
+  pointsEarned        Int?  // points earned  6
+  pointsRedeemed      Int?  // points redeemed 0
+  
+  // Customer Info
+  phoneNumber         String?
+  email               String?
+  notes               String?
+  
+  // Delivery/Pickup
+  addressId           String?
+  address             Address?  @relation(fields: [addressId], references: [id])
+  tableNumber         String?
+  
+  // Payment
+  paymentMethod       PaymentMethod
+  paymentStatus       PaymentStatus @default(PENDING)
+
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+enum DeliveryFeeType {
+  FIXED
+  DISTANCE_BASED
+  ZONE_BASED
+}
+
+
+enum CheckoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_BANKING
+  ONLINE
+}
+
+enum PointsTransactionType {
+  EARNED
+  REDEEMED
+  EXPIRED
+  ADJUSTED
 }
 
 model Cart {
@@ -678,19 +929,8 @@ model Payment {
   updatedAt     DateTime      @updatedAt
 }
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-}
 
-enum PaymentMethod {
-  CASH
-  CARD
-  MOBILE_BANKING
-  ONLINE
-}
+
 
 model Promotion {
   id          String        @id @default(cuid())

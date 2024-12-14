@@ -15,7 +15,8 @@
     "prettier:fix": "prettier --write .",
     "lint-prettier": "yarn lint:check && yarn prettier:check",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "backup-db": "ts-node scripts/export-data.ts"
+    "backup-db": "ts-node scripts/export-data.ts",
+    "restore-db": "ts-node scripts/import-data.ts"
   },
   "author": "Programming Hero",
   "license": "ISC",

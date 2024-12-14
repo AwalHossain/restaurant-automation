@@ -74,9 +74,6 @@ export class AddonService {
 
   async getAddOns() {
     const addons = await prisma.addon.findMany({
-      where:{
-        isActive:true
-      },
       include:{
         createdBy:true
       }
@@ -86,9 +83,6 @@ export class AddonService {
 
   async getAllFoodAddons() {
     const foodAddons = await prisma.foodAddon.findMany({
-      where:{
-        isActive:true
-      },
       include:{
         addon:true,
         food:true
@@ -96,6 +90,24 @@ export class AddonService {
     });
     console.log(foodAddons, "all food addons");
     
+    return foodAddons;
+  }
+
+  async getActiveAddOns() {
+    const addons = await prisma.addon.findMany({
+      where:{
+        isActive:true
+      }
+    });
+    return addons;
+  }
+  
+  async getActiveFoodAddons() {
+    const foodAddons = await prisma.foodAddon.findMany({
+      where:{
+        isActive:true
+      }
+    });
     return foodAddons;
   }
 

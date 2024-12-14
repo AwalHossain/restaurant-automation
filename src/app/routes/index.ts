@@ -6,7 +6,6 @@ import { CategoryRoutes } from "../api/v1/food/routes/category.routes";
 import { FoodRoutes } from "../api/v1/food/routes/food.routes";
 import { VariantRoutes } from "../api/v1/food/routes/variant.routes";
 import { PromotionRoutes } from "../api/v1/promotion/routes/promotion.routes";
-import { RestaurantRoutes } from "../api/v1/restaurant/routes/restaurant.routes";
 
 const router = express.Router();
 
@@ -38,10 +37,10 @@ const moduleRoutes: ModuleRoute[] = [
     path: "/variant",
     route: VariantRoutes
   },
-  {
-    path: "/restaurant",
-    route: RestaurantRoutes
-  },
+  // {
+  //   path: "/restaurant",
+  //   route: RestaurantRoutes
+  // },
   {
     path: "/campaign",
     route: campaignRoutes

@@ -167,6 +167,16 @@ export class AddonController {
     });
   });
 
+  getActiveAddOns = catchAsync(async (req: Request, res: Response) => {
+    const result = await this.addonService.getActiveAddOns();
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Active addons fetched successfully",
+      data: result
+    });
+  });
+
   // get food addons
   getFoodAddonsByFoodId = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;

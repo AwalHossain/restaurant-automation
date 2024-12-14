@@ -37,6 +37,15 @@ export class CategoryController {
     });
   });
 
+  getActiveCategories = catchAsync(async (req: Request, res: Response) => {
+    const result = await this.categoryService.getActiveCategories();
+    return res.status(200).json({
+      success: true,
+      message: "Active categories fetched successfully",
+      data: result
+    });
+  });
+
   getCategoryWithChildren = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
     const result = await this.categoryService.getCategoryWithChildren(id);

@@ -10,8 +10,11 @@ const categoryController = ControllerFactory.createCategoryController();
 
 router.post("/create", categoryController.createCategory);
 router.get("/all", categoryController.getAllCategories);
+router.get("/active", categoryController.getActiveCategories);
 router.get("/:id", categoryController.getCategoryWithChildren);
-router.patch("/toggle/:id", categoryController.toggleFoodCategoryActiveStatus);
+router.patch("/toggle/:id",
+   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+   categoryController.toggleFoodCategoryActiveStatus);
 
 router.post(
   "/add-sub",

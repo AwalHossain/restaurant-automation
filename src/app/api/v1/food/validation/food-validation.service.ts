@@ -1,10 +1,66 @@
 import httpStatus from "http-status";
+import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
 import { CreateFoodInput } from "../dtos/food.dto";
 
 // @Injectable()
 export class FoodValidationService {
+
+  private readonly createFoodSchema = z.object({
+    name: z.string().min(2, "Food name must be at least 2 characters"),
+    description: z.string().optional(),
+    basePrice: z.number().min(0, "Base price must be greater than 0"),
+    minOrderQuantity: z.number().min(1, "Minimum order quantity must be at least 1"),
+    
+    // Boolean flags
+    isPopular: z.boolean().optional(),
+    isRecommended: z.boolean().optional(),
+    isNewArrival: z.boolean().optional(),
+    freeDelivery: z.boolean().optional(),
+    specialDeliveryFee: z.boolean().optional(),
+    haveDiscount: z.boolean().optional(),
+    topSnacks: z.boolean().optional(),
+    dynamicHome: z.boolean().optional(),
+    trending: z.boolean().optional(),
+    isFree: z.boolean().optional(),
+    isFeatured: z.boolean().optional(),
+    isDefaultImage: z.boolean().optional(),
+    
+    // Price related
+    discountedPrice: z.number().optional(),
+    
+    // Time related
+    availableStartTime: z.string().optional(),
+    availableEndTime: z.string().optional(),
+    trendingStartTime: z.string().optional(),
+    trendingEndTime: z.string().optional(),
+    expiryDate: z.string().optional(), // or z.date() if you're passing Date objects
+    
+    // Relations and IDs
+    categoryIds: z.array(z.string()),
+    campaignId: z.string().optional(),
+    
+    // Arrays
+    images: z.array(z.object({
+      url: z.string(),
+      deviceType: z.enum(['MOBILE', 'TABLET', 'DESKTOP']),
+      width: z.number(),
+      height: z.number(),
+      size: z.number()
+    })).min(1, "At least one image is required"),
+    
+    // Variants
+    variants: z.array(z.object({
+      name: z.string(),
+      basePrice: z.number().min(0, "Variant base price must be greater than 0"),
+      isRequired: z.boolean().optional()
+    })).optional(),
+    
+    // Additional fields
+    offer: z.string().optional(),
+  });
+
   async validateCreateFoodInput(input: CreateFoodInput) {
     // basic validation
     if (input.basePrice <= 0) {
@@ -83,24 +139,40 @@ export class FoodValidationService {
       throw new ApiError(httpStatus.NOT_FOUND, "Food item not found");
     }
 
-    // Basic validation
-    if (input.basePrice && input.basePrice <= 0) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Base price must be greater than 0");
-    }
+    const updateSchema = this.createFoodSchema.partial();
 
-    if (input.minOrderQuantity && input.minOrderQuantity < 1) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Minimum order quantity must be at least 1");
-    }
-
-    // Validate categories if provided
-    if (input.categoryIds?.length) {
-      const categories = await prisma.category.findMany({
-        where: { id: { in: input.categoryIds } }
-      });
-      if (categories.length !== input.categoryIds.length) {
-        throw new ApiError(httpStatus.BAD_REQUEST, "One or more category IDs are invalid");
+    try {
+      await updateSchema.parseAsync(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw error;
       }
+      throw error;
     }
+
+    console.log(input.categoryIds?.length, "input.categoryIds.length");
+
+    // Validate categories if provided && check empty string
+// In your validation service
+if (Array.isArray(input.categoryIds)) {
+  // Filter out empty strings and undefined values
+  const validCategoryIds = input.categoryIds.filter(id => id && id.trim().length > 0);
+  
+  // If array is empty or contains only empty strings
+  if (validCategoryIds.length === 0) {
+    // Either throw error or allow empty (depending on your business logic)
+    throw new ApiError(httpStatus.BAD_REQUEST, "At least one valid category ID is required");
+  }
+
+  // Validate the remaining category IDs exist in database
+  const categories = await prisma.category.findMany({
+    where: { id: { in: validCategoryIds } }
+  });
+  
+  if (categories.length !== validCategoryIds.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "One or more category IDs are invalid");
+  }
+}
 
     // Validate variants if provided
     if (input.variants?.length) {
@@ -131,6 +203,8 @@ export class FoodValidationService {
     if (input.haveDiscount && (!input.discountedPrice || input.discountedPrice >= input.basePrice)) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Discounted price must be less than base price");
     }
+
+    return input;
   }
 
   private validateTimeFormat(time: string | undefined, fieldName: string) {

@@ -34,7 +34,9 @@ export class ControllerFactory {
     const foodService = new FoodService(new FoodValidationService(), variantService, addOnService);
     const imageService = new ImageService();
 
-    return new FoodController(foodService, imageService);
+    const foodValidationService = new FoodValidationService();
+
+    return new FoodController(foodService, imageService, foodValidationService);
   }
 
   static createCategoryController() {

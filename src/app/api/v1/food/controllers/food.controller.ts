@@ -5,14 +5,17 @@ import { ImageService } from "../../../../../services/foodImage.services";
 import catchAsync from "../../../../../shared/catchAsync";
 import sendResponse from "../../../../../shared/sendResponse";
 import { FoodService } from "../services/food.services";
+import { FoodValidationService } from "../validation/food-validation.service";
 
 export class FoodController {
   constructor(
     private readonly foodService: FoodService,
-    private readonly imageService: ImageService
+    private readonly imageService: ImageService,
+    private readonly foodValidationService: FoodValidationService
   ) {
     this.foodService = foodService;
     this.imageService = imageService;
+    this.foodValidationService = foodValidationService;
   }
 
   createFood = catchAsync(async (req: Request, res: Response) => {
@@ -53,10 +56,39 @@ export class FoodController {
 
 
   updateFoodDetails = catchAsync(async (req: Request, res: Response) => {
+    const { file } = req;
     const { id } = req.params;
-    const { body } = req;
     const { userId } = req.user as { userId: string };
-    const result = await this.foodService.updateFoodDetails({ ...body, id, userId });
+
+    
+    // Initialize update data
+    let updateData: any = {
+      id,
+      updatedBy: userId
+    };
+
+    // If there's form data, parse it
+    if (req.body.data) {
+      try {
+        const parsedData = JSON.parse(req.body.data);
+        updateData = { ...updateData, ...parsedData };
+        await this.foodValidationService.validateUpdateFoodInput(updateData);
+      } catch (error) {
+        throw new ApiError(400, "Invalid data format");
+      }
+    }
+
+    // If there's a file, process it
+    if (file) {
+      const images = await this.imageService.uploadFoodImage(file);
+      updateData.images = images;
+    }
+
+    // If neither data nor file is provided, throw error
+    if (!file && !req.body.data) {
+      throw new ApiError(400, "No updates provided");
+    }
+    const result = await this.foodService.updateFoodDetails(updateData);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,

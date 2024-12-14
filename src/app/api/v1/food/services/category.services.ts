@@ -152,4 +152,16 @@ export class CategoryService {
     });
     return category;
   }
+
+  async getActiveCategories() {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true, parentId: null },
+      include: {
+        children: {
+          where: { isActive: true }
+        }
+      }
+      });
+    return categories;
+  }
 }

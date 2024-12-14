@@ -67,15 +67,19 @@ export class FoodController {
       updatedBy: userId
     };
 
+
     // If there's form data, parse it
     if (req.body.data) {
-      try {
+ 
         const parsedData = JSON.parse(req.body.data);
+        console.log(parsedData, "parsedData");
+
         updateData = { ...updateData, ...parsedData };
-        await this.foodValidationService.validateUpdateFoodInput(updateData);
-      } catch (error) {
-        throw new ApiError(400, "Invalid data format");
-      }
+        console.log(updateData, "updateData");
+        const result = await this.foodValidationService.validateUpdateFoodInput(updateData);
+        console.log(result, "result");
+        
+
     }
 
     // If there's a file, process it

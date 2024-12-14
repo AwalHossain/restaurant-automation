@@ -5,6 +5,23 @@ node_modules
 .env
 .env.*
 
+# Backup files
+# Ignore backup data
+backup/*.json
+backup/
+
+*.zip
+*.json
+*.sql
+*.csv
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+*.db.gz
+*.db.zip
+
 # Log files
 logs/
 *.log

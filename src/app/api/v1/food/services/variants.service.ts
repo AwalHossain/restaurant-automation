@@ -63,8 +63,11 @@ export class VariantService {
       }
     });
 
+    
+
     if (!food) throw new ApiError(httpStatus.NOT_FOUND, "Food not found");
 
+    console.log(variants, "variants");
     // validate all variants
     await Promise.all(variants.map(variant => this.validationService.validateUpdateVariant({ ...variant, foodId })));
 
@@ -171,7 +174,10 @@ export class VariantService {
 
   async getVariantsByFoodId(foodId: string) {
     return prisma.foodVariant.findMany({
-      where: { foodId }
+      where: { foodId },
+      include: {
+        food: true
+      }
     });
   }
 }

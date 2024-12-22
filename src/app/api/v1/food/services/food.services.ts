@@ -138,6 +138,16 @@ export class FoodService {
   // }
 
   async updateFoodDetails(input: CreateFoodInput) {
+  // First verify the user exists
+  const userExists = await prisma.user.findUnique({
+    where: { id: input.updatedBy }
+});
+
+if (!userExists) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `User with ID ${input.updatedBy} not found`);
+}
+
+  
     const updatedFood = await prisma.food.update({
       where: { id: input.id },
       data: {
@@ -200,6 +210,7 @@ export class FoodService {
         foodImages: true,
         variants: true,
         categories: true,
+        foodAddons: true,
         branches: true
       }
     });

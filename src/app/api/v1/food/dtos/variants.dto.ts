@@ -10,7 +10,7 @@ export type CreateVariantInput = {
 
 export type UpdateVariantInput = {
   id: string;
-  foodId: string;
+  variantId: string;
   name?: string;
   basePrice?: number;
   isActive?: boolean;

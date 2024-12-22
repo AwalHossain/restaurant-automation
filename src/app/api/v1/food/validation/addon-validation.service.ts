@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
+import { prisma } from "../../../../../shared/prisma";
 import { CreateAddonInput } from "../dtos/addon.dto";
 
 // Input type definitions
@@ -133,7 +134,7 @@ export class AddOnValidationService {
 
   // Validation for bulk operations
   // Validation for bulk operations
-  validateBulkAddonIds(addonIds: BulkAddonInput[]): void {
+  async validateBulkAddonIds(addonIds: BulkAddonInput[]): Promise<void> {
     console.log(addonIds, "addonIds");
     if (addonIds.length === 0) {
       throw new ApiError(400, "At least one addon is required");
@@ -145,6 +146,23 @@ export class AddOnValidationService {
     )) {
       throw new ApiError(400, "Invalid addon format - each item must have a valid addonId");
     }
+
+    // check if addonId is valid
+    const result = await prisma.addon.findMany({
+      where: {
+        id: {
+          in: addonIds.map(addon => addon.addonId)
+        }
+      }
+    });
+
+    console.log(result, "result");
+
+    if (result.length !== addonIds.length) {
+      throw new ApiError(400, "Invalid addon IDs");
+    }
+
+
     const addonIdSet = new Set(addonIds.map(addon => addon.addonId));
     // console.log(addonIdSet, "addonIdSet", addonIds.length);
 

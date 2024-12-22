@@ -127,37 +127,6 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model Branch {
-  id                  String          @id @default(cuid())
-  name                String
-  address             String
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  isActive            Boolean         @default(true)
-  // Relations with managers and orders
-  foods               Food[]          @relation("BranchFood")
-  managers            Manager[]
-  orders              Order[]
-  phoneNumber         String?
-  email               String?
-  // coordinates         String? // Store latitude,longitude
-  latitude            String?
-  longitude           String?
-  deliveryRadius      Decimal?        @db.Decimal(10, 2) // in kilometers
-  isDeliveryAvailable Boolean         @default(true)
-  isTakeawayAvailable Boolean         @default(true)
-  isDineInAvailable   Boolean         @default(true)
-  User                User[]
-  Restaurant          Restaurant?     @relation(fields: [restaurantId], references: [id])
-  restaurantId        String?
-  BusinessHours       BusinessHours[]
-  Cart                Cart[]
-  Promotion           Promotion[]
-  branchFood          BranchFood[]
-  branchDeliverySettings BranchDeliverySettings[]
-  checkouts           Checkout[]
-}
-
 
 model BranchFood {
   id          String   @id @default(cuid())
@@ -594,16 +563,24 @@ model OrderItemAddon {
 }
 
 model Address {
-  id         String  @id @default(cuid())
-  userId     String
-  user       User    @relation(fields: [userId], references: [id])
-  street     String
-  city       String
-  state      String?
-  postalCode String?
-  isDefault  Boolean @default(false)
+  id          String    @id @default(cuid())
+  userId      String
+  street      String
+  city        String
+  state       String?
+  postalCode  String?
+  latitude    String?
+  longitude   String?
+  isDefault   Boolean   @default(false)
+  label       String?   // Add this field for Home, Office, etc.
+  additionalDirections String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+
   orders     Order[]
   checkouts  Checkout[]
+  @@index([userId, isDefault])
 }
 
 model Restaurant {
@@ -628,13 +605,21 @@ model Restaurant {
     // "instagram": "instagram.com/burgerpalace"
   // }
 
+
+  // branch handling
+  isSingleBranch Boolean @default(true)
+  defaultBranchId String? @unique
+  defaultBranch   Branch? @relation("DefaultBranch", fields: [defaultBranchId], references: [id])
+  branches        Branch[] @relation("RestaurantBranches")
+
   // Relations
-  branches    Branch[]
-  settings    RestaurantSettings?
-  pointsSystem PointsSystem?
-  userPoints   UserPoints[]
+  settings    RestaurantSettings? 
+  pointsSystem PointsSystem? 
+  userPoints   UserPoints[] 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+
 }
 
 enum restaurantType {
@@ -648,7 +633,7 @@ enum restaurantType {
 model RestaurantSettings {
   id                      String    @id @default(cuid())
   restaurantId            String    @unique
-  restaurant              Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurant              Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   
   // Basic Settings
   currency                String    @default("BDT")
@@ -736,6 +721,55 @@ model RestaurantSettings {
   
 }
 
+model Branch {
+  id                  String          @id @default(cuid())
+  name                String
+  address             String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  isActive            Boolean         @default(true)
+  isDefault           Boolean         @default(false)
+  // Relations with managers and orders
+  foods               Food[]          @relation("BranchFood")
+  managers            Manager[]
+  orders              Order[]
+  phoneNumber         String?
+  email               String?
+  // coordinates         String? // Store latitude,longitude
+  latitude            String?
+  longitude           String?
+  deliveryRadius      Decimal?        @db.Decimal(10, 2) // in kilometers
+  isDeliveryAvailable Boolean         @default(true)
+  isTakeawayAvailable Boolean         @default(true)
+  isDineInAvailable   Boolean         @default(true)
+
+
+
+
+  // restaurant relation
+  restaurantId        String?
+  Restaurant          Restaurant?     @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
+  User                User[]
+  
+  // default branch
+  defaultForRestaurant Restaurant? @relation("DefaultBranch")
+
+  // business hours
+  BusinessHours       BusinessHours[]
+
+  // cart
+  Cart                Cart[]
+
+  // promotion
+  Promotion           Promotion[]
+
+  // branch food
+  branchFood          BranchFood[]
+  branchDeliverySettings BranchDeliverySettings[]
+  checkouts           Checkout[]
+}
+
+
 // Points System
 model PointsSystem {
   id                  String    @id @default(cuid())
@@ -753,10 +787,15 @@ model PointsSystem {
   minSpendForPoints   Decimal?  @db.Decimal(10, 2) // minimum spend to earn points
   
   // Expiry Settings
-  pointsExpiry        Int?      // Days until points expire
-  
+  pointsExpiryDays        Int?      // Days until points expire
+  pointsExpiryType        PointsExpiryType @default(DAYS)
   // Relations
   userPoints          UserPoints[]
+}
+
+enum PointsExpiryType {
+  DAYS
+  MONTHS
 }
 
 model UserPoints {
@@ -773,11 +812,12 @@ model UserPoints {
   pointsExpiryDate    DateTime?
   
   // Relations
-  user                User      @relation(fields: [userId], references: [id])
-  restaurant          Restaurant @relation(fields: [restaurantId], references: [id])
-  pointsSystem        PointsSystem? @relation(fields: [pointsSystemId], references: [id])
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  pointsSystem        PointsSystem? @relation(fields: [pointsSystemId], references: [id], onDelete: Cascade)
   pointsSystemId      String?
   pointsHistory       PointsHistory[]
+  checkout            Checkout[]
 
 
   @@unique([userId, restaurantId])
@@ -825,9 +865,9 @@ model Checkout {
   // pointsSystem        PointsSystem? @relation(fields: [pointsSystemId], references: [id])
   // userPointsId        String?
   // userPoints          UserPoints? @relation(fields: [userPointsId], references: [id])
-  pointsEarned        Int?  // points earned  6
-  pointsRedeemed      Int?  // points redeemed 0
-  
+
+  userPoints          UserPoints[]
+
   // Customer Info
   phoneNumber         String?
   email               String?
@@ -937,7 +977,7 @@ model Promotion {
   promoCode        String        @unique
   type        PromotionType
   value       Decimal       @db.Decimal(10, 2)
-  minOrder    Decimal?      @db.Decimal(10, 2)
+  minOrderAmount    Decimal?      @db.Decimal(10, 2)
   maxDiscount Decimal?      @db.Decimal(10, 2)
   startDate   DateTime
   endDate     DateTime

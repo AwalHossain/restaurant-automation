@@ -6,6 +6,6 @@ const variantController = VariantControllerFactory.createVariantController();
 const router = Router();
 router.post("/create/:foodId", variantController.bulkUpdateVariants);
 router.get("/all/:foodId", variantController.getVariantsByFoodId);
-router.patch("/update/:variantId", variantController.updateVariant);
+router.patch("/update/:foodId/food-variant", variantController.updateVariant);
 
 export const VariantRoutes = router;

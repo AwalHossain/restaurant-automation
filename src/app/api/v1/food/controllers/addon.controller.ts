@@ -50,7 +50,7 @@ export class AddonController {
     const data = req.body;
     const {foodId} = req.params;
     console.log(data.addons, "data.addons");
-    this.addonValidationService.validateBulkAddonIds(data.addons);
+    await this.addonValidationService.validateBulkAddonIds(data.addons);
     const object = {addons:data.addons, foodId};
     console.log(object, "object");
     const result = await this.addonService.createBulkFoodAddons(object);

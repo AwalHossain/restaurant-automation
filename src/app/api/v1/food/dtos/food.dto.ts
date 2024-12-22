@@ -41,7 +41,7 @@ export type CreateFoodInput = {
   campaignId?: string;
   updatedBy: string;
   variants?: CreateFoodVariantInput[];
-  addonGroups?: CreateFoodAddonGroupInput[];
+  foodAddons?: CreateFoodAddonInput[];
   isVariantRequired?: boolean;
   createdById: string;
 }
@@ -65,7 +65,7 @@ export interface CreateFoodAddonInput {
   displayOrder?: number;     // New field
 }
 
-export interface CreateFoodAddonGroupInput {
+export interface CreateFoodAddon {
   id?: string;
   name: string;
   isRequired: boolean;

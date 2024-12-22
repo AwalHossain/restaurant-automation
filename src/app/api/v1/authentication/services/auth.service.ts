@@ -124,6 +124,25 @@ export class AuthService {
   }
   // Step 3: Complete user registration
   async completeRegistration(input: RegisterUserInput) {
+
+    // check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { phone: input.phone, isVerified: true }
+    });
+
+    if (existingUser) {
+      throw new ApiError(400, 'Phone number already registered, please login');
+    }
+
+    // check if user verified or not
+    const isVerified = await prisma.user.findUnique({
+      where: { phone: input.phone, isVerified: true }
+    });
+
+    if (!isVerified) {
+      throw new ApiError(400, 'User not verified, please verify your account');
+    }
+
     const hashedPassword = await hashPassword(input.password!);
 
     const user = await prisma.user.create({

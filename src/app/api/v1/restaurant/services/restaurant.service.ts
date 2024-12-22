@@ -1,68 +1,155 @@
-// import { prisma } from "../../../../../shared/prisma";
-// import { CreateBranchInput, CreateRestaurantInput } from "../dtos/restaurant.dto";
+import { prisma } from "../../../../../shared/prisma";
+import { CreateBranchInput, CreateRestaurantInput } from "../dtos/restaurant.dto";
 
 
 
 
-// export class RestaurantService {
+export class RestaurantService {
 
-//   async  createRestaurant(input: CreateRestaurantInput) {
-//         const result = await prisma.restaurant.create({
-//             data: {
-//                 ...input
-//             },
-//             include: {
-//                 RestaurantSettings: true
-//             }
-//         });
-//         return result;
-//     }
+  async  createRestaurant(input: CreateRestaurantInput) {
+    const restaurant = await prisma.$transaction(async (tx) => {
+        const restaurant = await tx.restaurant.create({
+            data: {
+                name: input.name,
+                domain: input.domain,
+                address: input.address,
+                logo: input.logo,
+                phoneNumber: input.phoneNumber,
+                email: input.email,
+                description: input.description,
+                socialMediaLinks: input.socialMediaLinks,
+                ratings: input.ratings,
+                isActive: input.isActive,
+                settings: {
+                    create:{
+                        currency: input.settings?.currency || 'BDT',
+                        currencySymbol: input.settings?.currencySymbol || '৳',
+                        timezone: input.settings?.timezone || 'Asia/Dhaka',
+                        baseDeliveryFee: input.settings?.baseDeliveryFee || 0,
+                        deliveryFeeCalculationType: input.settings?.deliveryFeeCalculationType || 'FIXED',
+                        distanceBasedFees: input.settings?.distanceBasedFees || [],
+                        minOrderAmount: input.settings?.minOrderAmount || 0,
+                        maxOrderAmount: input.settings?.maxOrderAmount || 1000000,
+                        taxPercentage: input.settings?.taxPercentage || 0,
+                        serviceChargePercentage: input.settings?.serviceChargePercentage || 0,
+                        allowGuestCheckout: input.settings?.allowGuestCheckout || false,
+                        requirePhoneNumber: input.settings?.requirePhoneNumber || false,
+                        requireEmail: input.settings?.requireEmail || false,
+                        takeoutEnabled: input.settings?.takeoutEnabled || false,
+                        takeoutServiceCharge: input.settings?.takeoutServiceCharge || 0,
+                        dineInEnabled: input.settings?.dineInEnabled || false,
+                        dineInServiceCharge: input.settings?.dineInServiceCharge || 0,
+                        globalMessage: input.settings?.globalMessage || '',
+                        globalMessageEnabled: input.settings?.globalMessageEnabled || false,
+                        lastUpdatedById: input.settings?.lastUpdatedById,
+                        customerSupportEmail: input.settings?.customerSupportEmail || '',
+                        restaurantType: input.settings?.restaurantType || 'FINE_DINING',
+                        acceptsPreorders: input.settings?.acceptsPreorders || false,
+                        autoAssignRiders: input.settings?.autoAssignRiders || false,
+                        smsNotifications: input.settings?.smsNotifications || false,
+                        emailNotifications: input.settings?.emailNotifications || false,
+                        errorNotificationEmail: input.settings?.errorNotificationEmail || '',
+                        notifyOnCriticalErrors: input.settings?.notifyOnCriticalErrors || false,
+                        autoResponseEnabled: input.settings?.autoResponseEnabled || false,
+                        feedbackResponseDelay: input.settings?.feedbackResponseDelay || 0,
+                        timezoneOffset: input.settings?.timezoneOffset || 0,
+                        updatedAt: new Date(),
+                    }
+                },
+                pointsSystem: input.pointsSystem ? {
+                    create: {
+                        isEnabled: input.pointsSystem.isEnabled,
+                        pointsRate: input.pointsSystem.pointsRate,
+                        redemptionRate: input.pointsSystem.redemptionRate,
+                        minPointsRedeem: input.pointsSystem.minPointsRedeem,
+                        maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
+                        minSpendForPoints: input.pointsSystem.minSpendForPoints,
+                        pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
+                        pointsExpiryType: input.pointsSystem.pointsExpiryType,
+                    }
+                }: undefined
+            },
+        
+            include: {
+                settings: true
+            }
+        });
 
-//     async getRestaurantByDomain(domain: string) {
-//         const result = await prisma.restaurant.findUnique({
-//             where: { domain },
-//             include: {
-//                 branches: true
-//             }
-//         });
-//         return result;
-//     }
+        const defaultBranch = await tx.branch.create({
+            data: {
+                name: `${restaurant.name} - Main Branch`,
+                isDefault: true,
+                restaurantId: restaurant.id,
+                address: restaurant.address || '',
+                phoneNumber: restaurant.phoneNumber || '',
+                email: restaurant.email || '',
+                isActive: restaurant.isActive || true,
+                latitude: input.latitude || '',
+                longitude: input.longitude || '',
+                
+            }
+        })
 
-//     async getAllRestaurants() {
-//         const result = await prisma.restaurant.findMany({
-//             include: {
-//                 branches: true
-//             }
-//         });
-//         return result;
-//     }
+        // update restaurant with default branch id
+       const updatedRestaurant = await tx.restaurant.update({
+            where: { id: restaurant.id },
+            data: { defaultBranchId: defaultBranch.id }
+        })
+
+        return updatedRestaurant;
+    })
+
+    // create default branch
+    return restaurant;
+  }
+
+    async getRestaurantByDomain(domain: string) {
+        const result = await prisma.restaurant.findUnique({
+            where: { domain },
+            include: {
+                branches: true,
+                settings: true
+            }
+        });
+        return result;
+    }
+
+    async getAllRestaurants() {
+        const result = await prisma.restaurant.findMany({
+            include: {
+                branches: true,
+                settings: true
+            }
+        });
+        return result;
+    }
 
 
-//     async createBranch(input: CreateBranchInput) {
-//         const result = await prisma.branch.create({
-//             data: {
-//                 ...input
-//             }
-//         })
-//         return result;
-//     }
+    async createBranch(input: CreateBranchInput) {
+        const result = await prisma.branch.create({
+            data: {
+                ...input
+            }
+        })
+        return result;
+    }
 
 
-//     async getAllBranches(restaurantId: string) {
-//         const result = await prisma.branch.findMany({
-//             where:{
-//                 restaurantId
-//             }
-//         });
-//         return result;
-//     }
+    async getAllBranches(restaurantId: string) {
+        const result = await prisma.branch.findMany({
+            where:{
+                restaurantId
+            }
+        });
+        return result;
+    }
 
-//     async getBranchById(id: string) {
-//         const result = await prisma.branch.findUnique({
-//             where: { id }
-//         });
-//         return result;
-//     }
-// }
+    async getBranchById(id: string) {
+        const result = await prisma.branch.findUnique({
+            where: { id }
+        });
+        return result;
+    }
+}
 
 

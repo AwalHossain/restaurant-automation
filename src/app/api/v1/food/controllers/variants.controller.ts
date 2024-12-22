@@ -36,9 +36,9 @@ export class VariantController {
   });
 
   updateVariant = catchAsync(async (req: Request, res: Response) => {
-    const { variantId } = req.params;
-    const { payload } = req.body;
-    const result = await this.variantService.updateVariant(variantId, payload);
+    const { foodId } = req.params;
+    const { variants } = req.body;
+    const result = await this.variantService.updateVariant(foodId, variants);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

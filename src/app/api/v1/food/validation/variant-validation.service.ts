@@ -23,6 +23,11 @@ export class VariantValidationService {
         v => v.name.toLowerCase() === input.name.toLowerCase()
       );
 
+      // validate variant price
+      if(Number(input.basePrice) < Number(food.basePrice)) {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Variant price cannot be less than the food base price');
+      }
+
       if (existingVariant) {
         throw new ApiError(
           httpStatus.BAD_REQUEST,
@@ -36,7 +41,7 @@ export class VariantValidationService {
     }
   }
 
-  async validateUpdateVariant(input: UpdateVariantInput) {
+  async validateUpdateVariant(input: UpdateVariantInput & { foodId: string }) {
     try {
       await updateVariantSchema.parseAsync(input);
 

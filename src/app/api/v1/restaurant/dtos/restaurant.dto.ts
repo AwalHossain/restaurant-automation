@@ -17,6 +17,9 @@
 //     updatedAt          DateTime            @updatedAt
 //     RestaurantSettings RestaurantSettings?
 //   }
+
+import { DeliveryFeeType } from "@prisma/client";
+
   
 //   model RestaurantSettings {
 //     id                      String          @id @default(cuid())
@@ -60,27 +63,43 @@ export type CreateRestaurantInput = {
         logo?: string;
         description?: string;
         socialMediaLinks?: string[];
+        isActive?: boolean;
     ratings?: number;
-    deliveryAreas?: string[];
     openDate?: Date;
     featured?: boolean;
-    restaurantSettings: RestaurantSettings;
+    settings?: RestaurantSettings;
+    pointsSystem?: PointSystemInput;
 }
+
 
 type RestaurantSettings = {
     currency: string;
     currencySymbol?: string;
     timezone?: string;
-    orderNumberPrefix?: string;
+    baseDeliveryFee?: number;
+    deliveryFeeCalculationType?: DeliveryFeeType;
+    distanceBasedFees?: DistanceBasedFees[];
+    zoneBasedFees?: ZoneBasedFees[];
     minOrderAmount?: number;
     maxOrderAmount?: number;
-    deliveryFee?: number;
     taxPercentage?: number;
-    paymentMethods?: string[];
-    deliveryTimeEstimate?: number;
+    serviceChargePercentage?: number;
+
+    allowGuestCheckout?: boolean;
+    requirePhoneNumber?: boolean;
+    requireEmail?: boolean;
+    takeoutEnabled?: boolean;
+    takeoutServiceCharge?: number;
+    dineInEnabled?: boolean;
+    dineInServiceCharge?: number;
+
+    // Messages
+    globalMessage?: string;
+    globalMessageEnabled?: boolean;
+
+
     customerSupportEmail?: string;
     restaurantType?: RestaurantType;
-    serviceChargePercentage?: number;
     acceptsPreorders?: boolean;
     autoAssignRiders?: boolean;
     smsNotifications?: boolean;
@@ -90,9 +109,58 @@ type RestaurantSettings = {
     autoResponseEnabled?: boolean;
     feedbackResponseDelay?: number;
     timezoneOffset?: number;
+
+    lastUpdatedBy?: {
+        connect:{
+            id: string;
+        }
+    };
+    lastUpdatedById?: string;
+    updatedAt?: Date;
+}
+
+// type for PointSystem
+export type PointSystemInput = {
+    isEnabled: boolean;
+    pointsRate: number;      // e.g., 1 point per 100 BDT
+    redemptionRate: number;  // e.g., 0.50 BDT per point
+    minPointsRedeem: number; // e.g., 100 points minimum
+    maxPointsRedeem?: number; // e.g., 1000 points maximum
+    minSpendForPoints: number; // e.g., 500 BDT minimum spend
+    pointsExpiryDays?: number;
+    pointsExpiryType: "DAYS" | "MONTHS";
 }
 
 
+type DistanceBasedFees = {
+    baseFee: number;
+    perKmCharge: number;
+    ranges: DistanceRange[];
+}
+
+type DistanceRange = {
+    minKm: number;
+    maxKm: number;
+    fee: number;
+    // estimated time based on the distance
+    estimatedTime: {
+        minMinutes: number;
+        maxMinutes: number;
+    }
+}
+
+type ZoneBasedFees = {
+    zones: Zone[];
+}
+
+type Zone = {
+    name: string;
+    fee: number;
+    estimatedTime: {
+        minMinutes: number;
+        maxMinutes: number;
+    }
+}
 
 export type RestaurantType = "FAST_FOOD" | "FINE_DINING" | "CAFE";
 

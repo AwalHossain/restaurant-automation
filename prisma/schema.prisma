@@ -348,7 +348,7 @@ model FoodAddon {
   id            String   @id @default(cuid())
   foodId        String
   addonId       String
-  maxSelections Int      @default(50)    // Maximum times this addon can be selected
+  maxSelections Int      @default(1)    // Maximum times this addon can be selected
   isRequired    Boolean  @default(false)
   displayOrder  Int      @default(0)
   isActive      Boolean  @default(true)

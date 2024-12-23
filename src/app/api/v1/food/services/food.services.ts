@@ -210,7 +210,11 @@ if (!userExists) {
         foodImages: true,
         variants: true,
         categories: true,
-        foodAddons: true,
+        foodAddons: {
+          include: {
+            addon: true
+          }
+        },
         branches: true
       }
     });

@@ -192,7 +192,6 @@ export class AddonService {
     const foodAddons = await prisma.foodAddon.findMany({
       where: { 
         foodId,
-        isActive:true,
        },
        include:{
         addon:true

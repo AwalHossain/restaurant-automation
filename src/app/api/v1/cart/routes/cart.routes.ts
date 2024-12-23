@@ -1,6 +1,5 @@
 
 import express from 'express';
-import { ENUM_USER_ROLE } from '../../../../../enums/user';
 import auth from '../../../../middlewares/auth';
 import { CartController } from '../controllers/cart.controller';
 import { CartService } from '../services/cart.service';
@@ -10,32 +9,32 @@ const cartController = new CartController(new CartService());
 
 router.post(
   '/add-to-cart',
-  auth(ENUM_USER_ROLE.CUSTOMER),
+  auth(),
   // validateRequest(addToCartSchema),
   cartController.addToCart
 );
 
 router.get(
   '/',
-  auth(ENUM_USER_ROLE.CUSTOMER),
+  auth(),
   cartController.getCart
 );
 
 router.patch(
   '/items/:cartItemId',
-  auth(ENUM_USER_ROLE.CUSTOMER),
+  auth(),
   cartController.updateCartItem
 );
 
 router.delete(
   '/items/:cartItemId',
-  auth(ENUM_USER_ROLE.CUSTOMER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER),
+  auth(),
   cartController.removeCartItem
 );
 
 router.delete(
   '/',
-  auth(ENUM_USER_ROLE.CUSTOMER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER),
+  auth(),
   cartController.clearCart
 );
 

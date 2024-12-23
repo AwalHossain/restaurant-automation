@@ -79,7 +79,8 @@ export class CartController {
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: 'Cart item removed successfully'
+      message: 'Cart item removed successfully',
+      data: {}
     });
   });
 
@@ -93,7 +94,8 @@ export class CartController {
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: 'Cart cleared successfully'
+      message: 'Cart cleared successfully',
+      data: []
     });
   });
 } 

@@ -2,7 +2,7 @@ export interface CreatePromotionDto {
   promoCode: string;
   type: "PERCENTAGE" | "FIXED";
   value: number;
-  minOrder?: number;
+  minOrderAmount?: number;
   maxDiscount?: number;
   startDate: Date;
   endDate: Date;

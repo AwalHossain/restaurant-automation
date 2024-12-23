@@ -136,4 +136,13 @@ export class PromotionController {
       data: result
     });
   });
+  
+  getAllPromotions = catchAsync(async (req: Request, res: Response) => {
+    const result = await this.promotionService.getAllPromotions();
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: "Promotions retrieved successfully",
+      data: result
+    });
+  });
 }

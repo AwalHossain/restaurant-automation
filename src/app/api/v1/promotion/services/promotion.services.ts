@@ -286,4 +286,9 @@ async getPromotionFoods(promotionId: string) {
       totalRedemptions: promotion.usedCount
     };
   }
+
+
+  async getAllPromotions(){
+    return await prisma.promotion.findMany();
+  }
 }

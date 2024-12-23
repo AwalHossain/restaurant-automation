@@ -3,16 +3,30 @@ import httpStatus from "http-status";
 import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
 import { AddressService } from "../../address/services/address.service";
-import { CreateCheckoutInput, ValidatedCartItem } from "../dtos/checkout.dto";
+import { CalculateTotalsInput, CreateCheckoutInput, ValidatedCartItem } from "../dtos/checkout.dto";
 
 
 
 
 export class CheckoutService {
 
-  constructor(private readonly addressService: AddressService){
+
+  private readonly addressService: AddressService
+  
+  constructor(){
       this.addressService = new AddressService();
   }
+
+
+  async preCheckout(input: CalculateTotalsInput, userId: string){
+    const validatedItem = await this.validateCart(userId);
+
+    // calculate initial totals
+    const subtotal = await this.calculateTotal(validatedItem, input, userId);
+
+    return subtotal;
+  }
+
 
   async createCheckout(input: CreateCheckoutInput, userId: string){
    
@@ -41,13 +55,14 @@ export class CheckoutService {
       promotionId,
     } = await this.calculateTotal(validatedItem, input, userId)
 
+
     // create checkout
     const checkout = await tx.checkout.create({
       data: {
         userId,
         branchId: input.branchId,
         orderType: input.orderType,
-        paymentMethod: input.paymentMethod,
+        paymentMethod: input.paymentMethod!,
         subtotal,
         deliveryFee,
         serviceCharge,
@@ -67,10 +82,63 @@ export class CheckoutService {
       }
     })
 
+    console.log(checkout,">>>> checkout");
+    
+
+       // Update promotion and points usage after successful checkout
+       if (input.promoCode) {
+        await this.updatePromotionUsage(promotionId, userId, checkout.id);
+      }
+       if (input.pointsToRedeem) {
+        await this.updateUserPoints(
+          userId,
+          input?.restaurantId!,
+          checkout.id,
+          input.pointsToRedeem,
+          earnablePoints ?? 0
+        );
+      }
+
     // clear cart
     
+    return checkout;
   })
   }
+
+
+  // get all checkout
+  async getAllCheckouts(){
+    return await prisma.checkout.findMany({
+    })
+  }
+
+  // get checkout by checkout id
+  async getCheckoutByOrderId(id: string){
+    console.log(id,">>>> id");
+    const checkout = await prisma.checkout.findUnique({
+      where:{
+        orderNumber: id
+      },
+      include:{
+        user: true,
+        branch: true,
+        address: true,
+      }
+    })
+    console.log(checkout,">>>> checkout");
+    if(!checkout) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Checkout not found');
+    }
+    return checkout;
+  }
+
+  // get checkout by user id
+  async getCheckoutByUserId(userId: string){
+    return await prisma.checkout.findMany({
+      where:{userId}
+    })
+  }
+
 
   private generateOrderNumber(userId: string){
     return `ORD-${userId}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`
@@ -363,6 +431,8 @@ export class CheckoutService {
       }
     })
 
+    console.log(userPoints,">>>> userPoints", pointsToRedeem, userPoints?.points );
+
     if(!userPoints || !userPoints.pointsSystem) {
       return 0;
     }
@@ -370,6 +440,8 @@ export class CheckoutService {
     if(pointsToRedeem > userPoints.points) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient points');
     }
+
+    
 
     // check points expiry
     if(userPoints.pointsExpiryDate && userPoints.pointsExpiryDate < new Date()) {

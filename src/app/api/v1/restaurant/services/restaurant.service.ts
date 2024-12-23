@@ -118,7 +118,8 @@ export class RestaurantService {
         const result = await prisma.restaurant.findMany({
             include: {
                 branches: true,
-                settings: true
+                settings: true,
+                pointsSystem: true,
             }
         });
         return result;

@@ -2,6 +2,7 @@ import express from "express";
 import { AdminAuthRoutes } from "../api/v1/authentication/routes/auth.routes";
 import { campaignRoutes } from "../api/v1/campaign/routes/campaign.routes";
 import { cartRoutes } from "../api/v1/cart/routes/cart.routes";
+import { checkoutRoutes } from "../api/v1/checkout/routes/checkout.routes";
 import { AddonRoutes } from "../api/v1/food/routes/addon.routes";
 import { CategoryRoutes } from "../api/v1/food/routes/category.routes";
 import { FoodRoutes } from "../api/v1/food/routes/food.routes";
@@ -42,6 +43,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/restaurant",
     route: RestaurantRoutes
+  },
+  {
+    path: "/checkout",
+    route: checkoutRoutes
   },
   {
     path: "/campaign",

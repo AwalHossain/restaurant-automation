@@ -15,9 +15,9 @@ export class PromotionValidationService {
 
     // Validate dates
     const now = new Date();
-    if (new Date(input.startDate) < now) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Start date cannot be in the past");
-    }
+    // if (new Date(input.startDate) < now) {
+    //   throw new ApiError(httpStatus.BAD_REQUEST, "Start date cannot be in the past");
+    // }
     if (new Date(input.endDate) <= new Date(input.startDate)) {
       throw new ApiError(httpStatus.BAD_REQUEST, "End date must be after start date");
     }
@@ -34,7 +34,7 @@ export class PromotionValidationService {
     }
 
     // Validate order constraints
-    if (input.minOrder && input.minOrder < 0) {
+    if (input.minOrderAmount && input.minOrderAmount < 0) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Minimum order amount cannot be negative");
     }
     if (input.maxDiscount && input.maxDiscount < 0) {

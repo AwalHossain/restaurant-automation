@@ -112,7 +112,10 @@ export class CartService {
         })
 
         if (!cart) {
-          return new ApiError(404, "Cart not found")
+          return {
+            items: [],
+            total: 0
+          }
         }
 
         // calculate total for each item and cart
@@ -144,7 +147,10 @@ export class CartService {
         })
 
         if (!cartItem) {
-          return new ApiError(404, "Cart item not found")
+          return {
+            items: [],
+            total: 0
+          }
         }
 
         console.log(data,"data");

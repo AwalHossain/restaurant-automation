@@ -48,7 +48,7 @@ router.patch(
 // Public routes (No auth required)
 router.get("/active", promotionController.getActivePromotions);
 router.get("/upcoming", promotionController.getUpcomingPromotions);
-router.get("/:id", promotionController.getPromotionById);
+router.get("/:id/foods", promotionController.getPromotionById);
 
 // User routes (Auth required)
 router.get("/user/history", auth(ENUM_USER_ROLE.CUSTOMER), promotionController.getUserPromotionHistory);
@@ -62,4 +62,5 @@ router.get(
 
 router.post("/track-usage/:promotionId", auth(ENUM_USER_ROLE.CUSTOMER), promotionController.trackPromotionUsage);
 
+router.get("/all", promotionController.getAllPromotions);
 export const PromotionRoutes = router;

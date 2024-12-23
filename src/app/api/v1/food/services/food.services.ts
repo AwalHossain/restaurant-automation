@@ -219,7 +219,7 @@ if (!userExists) {
       }
     });
     return foods;
-  }
+  }  
 
   async getFoodById(id: string) {
     const food = await prisma.food.findUnique({

@@ -79,6 +79,35 @@ export class CheckoutService {
         email: input.email,
         phoneNumber: input.phoneNumber,
         updatedAt: new Date(),
+        items:{
+          create: validatedItem.map((item)=>({
+            variant: item.variantId ? {
+              connect:{
+                id: item.variantId
+              }
+            } : undefined,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            addonTotal: item.addonTotal,
+            food: {
+              connect:{
+                id: item.foodId
+              }
+            },
+            addons:{
+              create: item.addons.map((addon)=>({
+                quantity: addon.quantity,
+                unitPrice: 0,
+                addon:{
+                  connect:{
+                    id: addon.addonId
+                  }
+                }
+              }))
+            }
+          }))
+        }
       }
     })
 
@@ -109,6 +138,12 @@ export class CheckoutService {
   // get all checkout
   async getAllCheckouts(){
     return await prisma.checkout.findMany({
+      include:{
+        items: true,
+        user: true,
+        branch: true,
+        address: true,
+      }
     })
   }
 
@@ -123,12 +158,33 @@ export class CheckoutService {
         user: true,
         branch: true,
         address: true,
+        items: {
+          include:{
+            food: true,
+            variant: true,
+            addons: {
+              include:{
+                addon: true,
+              }
+            }
+          }
+        },
       }
     })
     console.log(checkout,">>>> checkout");
     if(!checkout) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Checkout not found');
     }
+  
+    // handle legacy checkout
+    if(!checkout.items || checkout.items.length === 0){
+      return{
+        ...checkout,
+        isLegacyCheckout: true, 
+        items:[]
+      }
+    }
+
     return checkout;
   }
 

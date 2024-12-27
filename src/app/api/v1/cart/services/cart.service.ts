@@ -112,10 +112,7 @@ export class CartService {
         })
 
         if (!cart) {
-          return {
-            items: [],
-            total: 0
-          }
+          throw new ApiError(404, "Cart not found");
         }
 
         // calculate total for each item and cart
@@ -143,8 +140,14 @@ export class CartService {
       async updateCartItemQuantity(data: {cartItemId: string, quantity: number, addons: any}, userId: string) {
         // verify cart item belongs to user
         const cartItem = await prisma.cartItem.findUnique({
-          where: { id: data.cartItemId, cart: { userId } },
+          where: { id: data.cartItemId, cart: { 
+            userId: userId,
+           } 
+          },
         })
+
+        console.log(cartItem,"cartItem", data.cartItemId);
+        
 
         if (!cartItem) {
           return {

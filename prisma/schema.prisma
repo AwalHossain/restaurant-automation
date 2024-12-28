@@ -44,6 +44,7 @@ model User {
   createdFoods Food[] @relation("FoodCreator")
   updatedFoods Food[] @relation("FoodUpdater")
   deletedAddons Addon[] @relation("AddonDeleter")
+  deletedBranch Branch[] @relation("BranchDeleter")
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -127,6 +128,63 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model Branch {
+  id                  String          @id @default(cuid())
+  name                String
+  description         String?
+  address             String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  isActive            Boolean         @default(true)
+  isDefault           Boolean         @default(false)
+  // Relations with managers and orders
+  foods               Food[]          @relation("BranchFood")
+  managers            Manager[]
+  orders              Order[]
+  phoneNumber         String?
+  email               String?
+  // coordinates         String? // Store latitude,longitude
+  latitude            String?
+  longitude           String?
+  deliveryRadius      Decimal?        @db.Decimal(10, 2) // in kilometers
+  isDeliveryAvailable Boolean         @default(true)
+  isTakeawayAvailable Boolean         @default(true)
+  isDineInAvailable   Boolean         @default(true)
+  isDeleted           Boolean         @default(false)
+  deletedAt           DateTime?
+  deletedBy           User?           @relation("BranchDeleter", fields: [deletedById], references: [id])
+  deletedById         String?
+
+
+  // audit logs
+  auditLogs           AuditLog[]
+
+
+
+
+  // restaurant relation
+  restaurantId        String?
+  Restaurant          Restaurant?     @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
+  User                User[]
+  
+  // default branch
+  defaultForRestaurant Restaurant? @relation("DefaultBranch")
+
+  // business hours
+  BusinessHours       BusinessHours[]
+
+  // cart
+  Cart                Cart[]
+
+  // promotion
+  Promotion           Promotion[]
+
+  // branch food
+  branchFood          BranchFood[]
+  branchDeliverySettings BranchDeliverySettings[]
+  checkouts           Checkout[]
+}
+
 
 model BranchFood {
   id          String   @id @default(cuid())
@@ -148,6 +206,16 @@ model BusinessHours {
   closingTime String // 24-hour format
   isClosed    Boolean @default(false)
 
+  // Order Receiving hours (optional)
+  orderReceivingStart String?
+  orderReceivingEnd String?
+
+  // temporary changes
+  temporaryClose Boolean @default(false)
+  temporaryCloseStart DateTime?
+  temporaryCloseEnd DateTime?
+  temporaryCloseReasonMessage String?
+
   @@unique([branchId, dayOfWeek])
 }
 
@@ -157,6 +225,7 @@ model BranchDeliverySettings {
   branch            Branch  @relation(fields: [branchId], references: [id])
   baseDeliveryFee   Decimal @db.Decimal(10, 2)
   deliveryZones     Json?   // Store custom delivery zones and fees
+  distanceBasedFees Json?   // Store distance based fees
   maxDeliveryRadius Decimal @db.Decimal(10, 2)
 }
 
@@ -724,53 +793,7 @@ model RestaurantSettings {
   
 }
 
-model Branch {
-  id                  String          @id @default(cuid())
-  name                String
-  address             String
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  isActive            Boolean         @default(true)
-  isDefault           Boolean         @default(false)
-  // Relations with managers and orders
-  foods               Food[]          @relation("BranchFood")
-  managers            Manager[]
-  orders              Order[]
-  phoneNumber         String?
-  email               String?
-  // coordinates         String? // Store latitude,longitude
-  latitude            String?
-  longitude           String?
-  deliveryRadius      Decimal?        @db.Decimal(10, 2) // in kilometers
-  isDeliveryAvailable Boolean         @default(true)
-  isTakeawayAvailable Boolean         @default(true)
-  isDineInAvailable   Boolean         @default(true)
 
-
-
-
-  // restaurant relation
-  restaurantId        String?
-  Restaurant          Restaurant?     @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
-  User                User[]
-  
-  // default branch
-  defaultForRestaurant Restaurant? @relation("DefaultBranch")
-
-  // business hours
-  BusinessHours       BusinessHours[]
-
-  // cart
-  Cart                Cart[]
-
-  // promotion
-  Promotion           Promotion[]
-
-  // branch food
-  branchFood          BranchFood[]
-  branchDeliverySettings BranchDeliverySettings[]
-  checkouts           Checkout[]
-}
 
 
 // Points System
@@ -1112,14 +1135,26 @@ model AuditLog {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
-  action     String
-  entityType String
-  entityId   String
-  oldData    Json?
-  newData    Json?
+  action     AuditLogAction
+  entityType String    // BRANCH, FOOD, ORDER, USER, PROMOTION, ADDON, CATEGORY, ADDRESS, PAYMENT, CHECKOUT, CHECKOUT_ITEM, CHECKOUT_ITEM_ADDON, CHECKOUT_ITEM_PROMOTION, CHECKOUT_ITEM_ADDON_PROMOTION, CHECKOUT_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION_PROMOTION
+  entityId   String   // Id of the entity being audited
+  oldData    Json?    // Old data of the entity
+  newData    Json?    // New data of the entity
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+
+  // relations
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+
+}
+
+enum AuditLogAction {
+  CREATE
+  UPDATE
+  DELETE
 }
 
 model Feedback {

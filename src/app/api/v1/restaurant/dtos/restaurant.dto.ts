@@ -110,11 +110,7 @@ type RestaurantSettings = {
     feedbackResponseDelay?: number;
     timezoneOffset?: number;
 
-    lastUpdatedBy?: {
-        connect:{
-            id: string;
-        }
-    };
+    lastUpdatedBy?: string;
     lastUpdatedById?: string;
     updatedAt?: Date;
 }
@@ -180,6 +176,7 @@ export type RestaurantType = "FAST_FOOD" | "FINE_DINING" | "CAFE";
 export type CreateBranchInput = {
 
     name: string;
+    description?: string;
     address: string;
     phoneNumber: string;
     email: string;
@@ -191,6 +188,7 @@ export type CreateBranchInput = {
     isDineInAvailable?: boolean;
     restaurantId: string;
     businessHours: BusinessHours[];
+    branchDeliverySettings: BranchDeliverySettings;
 
 }
 
@@ -199,4 +197,17 @@ type BusinessHours = {
     openingTime: string;
     closingTime: string;
     isClosed: boolean;
+    orderReceivingStart?: string;
+    orderReceivingEnd?: string;
+    temporaryClose?: boolean;
+    temporaryCloseStart?: string;
+    temporaryCloseEnd?: string;
+    temporaryCloseReasonMessage?: string;
+}
+ 
+export type BranchDeliverySettings = {
+    baseDeliveryFee?: number;
+    deliveryZones?: Zone[];
+    distanceBasedFees?: DistanceBasedFees[];
+    maxDeliveryRadius?: number;
 }

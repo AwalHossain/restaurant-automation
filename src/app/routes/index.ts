@@ -1,5 +1,6 @@
 import express from "express";
 import { AdminAuthRoutes } from "../api/v1/authentication/routes/auth.routes";
+import { branchRoutes } from "../api/v1/branch/routes/branch.route";
 import { campaignRoutes } from "../api/v1/campaign/routes/campaign.routes";
 import { cartRoutes } from "../api/v1/cart/routes/cart.routes";
 import { checkoutRoutes } from "../api/v1/checkout/routes/checkout.routes";
@@ -59,6 +60,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/cart",
     route: cartRoutes
+  },
+  {
+    path: "/branch",
+    route: branchRoutes
   }
   // Add more routes as needed
 ];

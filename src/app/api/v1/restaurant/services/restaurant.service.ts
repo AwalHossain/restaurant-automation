@@ -71,7 +71,7 @@ export class RestaurantService {
             },
         
             include: {
-                settings: true
+                settings: true,
             }
         });
 
@@ -93,7 +93,11 @@ export class RestaurantService {
         // update restaurant with default branch id
        const updatedRestaurant = await tx.restaurant.update({
             where: { id: restaurant.id },
-            data: { defaultBranchId: defaultBranch.id }
+            data: { defaultBranchId: defaultBranch.id },
+            include: {
+                settings: true,
+                pointsSystem: true,
+            }
         })
 
         return updatedRestaurant;
@@ -117,7 +121,14 @@ export class RestaurantService {
     async getAllRestaurants() {
         const result = await prisma.restaurant.findMany({
             include: {
-                branches: true,
+                branches: {
+                    include:{
+                        BusinessHours: true,
+                        branchDeliverySettings: true,
+                        managers: true,
+                        
+                    }
+                },
                 settings: true,
                 pointsSystem: true,
             }
@@ -129,7 +140,15 @@ export class RestaurantService {
     async createBranch(input: CreateBranchInput) {
         const result = await prisma.branch.create({
             data: {
-                ...input
+                ...input,
+                branchDeliverySettings: input.branchDeliverySettings ? {
+                    create: {
+                        baseDeliveryFee: input.branchDeliverySettings.baseDeliveryFee ?? 0,
+                        maxDeliveryRadius: input.branchDeliverySettings.maxDeliveryRadius ?? 0,
+                        distanceBasedFees: input.branchDeliverySettings.distanceBasedFees ?? [],
+                        deliveryZones: input.branchDeliverySettings.deliveryZones ?? []
+                    }
+                } : undefined
             }
         })
         return result;
@@ -149,6 +168,75 @@ export class RestaurantService {
         const result = await prisma.branch.findUnique({
             where: { id }
         });
+        return result;
+    }
+
+    // update
+    // want to add restaurantId in the input in the props of the function
+    async updateRestaurantSettings(input: Partial<CreateRestaurantInput> & { restaurantId: string }) {
+        const result = await prisma.restaurant.update({
+            where: { id: input.restaurantId },
+            data: {
+                name: input.name,
+                domain: input.domain,
+                address: input.address,
+                logo: input.logo,
+                phoneNumber: input.phoneNumber,
+                email: input.email,
+                description: input.description,
+                socialMediaLinks: input.socialMediaLinks,
+                ratings: input.ratings,
+                isActive: input.isActive,
+                settings: {
+                    update:{
+                        updatedAt: new Date(),
+                        lastUpdatedById: input?.settings?.lastUpdatedById,
+                        currency: input.settings?.currency,
+                        currencySymbol: input.settings?.currencySymbol,
+                        timezone: input.settings?.timezone,
+                        baseDeliveryFee: input.settings?.baseDeliveryFee,
+                        deliveryFeeCalculationType: input.settings?.deliveryFeeCalculationType,
+                        distanceBasedFees: input.settings?.distanceBasedFees,
+                        minOrderAmount: input.settings?.minOrderAmount,
+                        maxOrderAmount: input.settings?.maxOrderAmount,
+                        taxPercentage: input.settings?.taxPercentage,
+                        serviceChargePercentage: input.settings?.serviceChargePercentage,
+                        allowGuestCheckout: input.settings?.allowGuestCheckout,
+                        requirePhoneNumber: input.settings?.requirePhoneNumber,
+                        requireEmail: input.settings?.requireEmail,
+                        takeoutEnabled: input.settings?.takeoutEnabled,
+                        takeoutServiceCharge: input.settings?.takeoutServiceCharge,
+                        dineInEnabled: input.settings?.dineInEnabled,
+                        dineInServiceCharge: input.settings?.dineInServiceCharge,
+                        globalMessage: input.settings?.globalMessage,
+                        globalMessageEnabled: input.settings?.globalMessageEnabled,
+                        customerSupportEmail: input.settings?.customerSupportEmail,
+                        restaurantType: input.settings?.restaurantType,
+                        acceptsPreorders: input.settings?.acceptsPreorders,
+                        autoAssignRiders: input.settings?.autoAssignRiders,
+                        smsNotifications: input.settings?.smsNotifications,
+                        emailNotifications: input.settings?.emailNotifications,
+                        errorNotificationEmail: input.settings?.errorNotificationEmail,
+                        notifyOnCriticalErrors: input.settings?.notifyOnCriticalErrors,
+                        autoResponseEnabled: input.settings?.autoResponseEnabled,
+                        feedbackResponseDelay: input.settings?.feedbackResponseDelay,
+                        timezoneOffset: input.settings?.timezoneOffset
+                    }
+                },
+                pointsSystem: input.pointsSystem ? {
+                    create: {
+                        isEnabled: input.pointsSystem.isEnabled,
+                        pointsRate: input.pointsSystem.pointsRate,
+                        redemptionRate: input.pointsSystem.redemptionRate,
+                        minPointsRedeem: input.pointsSystem.minPointsRedeem,
+                        maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
+                        minSpendForPoints: input.pointsSystem.minSpendForPoints,
+                        pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
+                        pointsExpiryType: input.pointsSystem.pointsExpiryType,
+                    }
+                }: undefined
+            }
+        })
         return result;
     }
 }

@@ -21,7 +21,17 @@ router.post(
     branchController.createBranch
 );
 
+// Basic Info
+router.patch(
+    '/:branchId/update-basic-info',
+    auth(
+        ENUM_USER_ROLE.SUPER_ADMIN,
+        ENUM_USER_ROLE.ADMIN
+    ),
+    branchController.updateBranchBasicInfo
+);
 
+// Business Hours
 router.patch(
     '/:branchId/update-business-hours',
     auth(
@@ -31,6 +41,15 @@ router.patch(
     branchController.updateBranchBusinessHours
 );
 
+// Delivery Settings
+router.patch(
+    '/:branchId/update-delivery-settings',
+    auth(
+        ENUM_USER_ROLE.SUPER_ADMIN,
+        ENUM_USER_ROLE.ADMIN
+    ),
+    branchController.updateBranchDeliverySettings
+);
 
 router.get(
     '/get-all',

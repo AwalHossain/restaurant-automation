@@ -188,14 +188,16 @@ export class BranchService {
 
 
   // update branch data only
-  async updateBranch(input: Partial<CreateBranchInput> & { id: string }) {
+  async updateBranchBasicInfo(input: Partial<CreateBranchInput> & { branchId: string }) {
     
     const validatedData = await this.branchValidationService.validateUpdateBranch(input);
-    return await prisma.branch.update({
-      where: { id: input.id },
+    return await prisma.$transaction(async (tx) => {
+    await tx.branch.update({
+      where: { id: input.branchId },
       data: {
         name: validatedData.name,
         address: validatedData.address,
+        description: validatedData.description,
         phoneNumber: validatedData.phoneNumber,
         email: validatedData.email,
         latitude: validatedData.latitude,
@@ -204,10 +206,56 @@ export class BranchService {
         isDeliveryAvailable: validatedData.isDeliveryAvailable,
         isTakeawayAvailable: validatedData.isTakeawayAvailable,
         isDineInAvailable: validatedData.isDineInAvailable,
-        restaurantId: validatedData.restaurantId,
       }
     });
+
+    return await tx.branch.findUnique({where: {id: input.branchId}});
+  });
   }
+
+  async updateBranchDeliverySettings(input: Partial<CreateBranchInput> & { branchId: string }) {
+    const validatedData = await this.branchValidationService.validateUpdateBranchDeliverySettings(input);
+    console.log(validatedData, "validated data");
+    return await prisma.$transaction(async (tx) => {
+      await tx.branchDeliverySettings.update({
+        where: { branchId: input.branchId },
+        data: {
+          baseDeliveryFee: validatedData.branchDeliverySettings?.baseDeliveryFee,
+          maxDeliveryRadius: validatedData.branchDeliverySettings?.maxDeliveryRadius,
+          distanceBasedFees: validatedData.branchDeliverySettings?.distanceBasedFees,
+          deliveryZones: validatedData.branchDeliverySettings?.deliveryZones
+        }
+      });
+
+      // create audit log
+      await tx.auditLog.create({
+        data: {
+          userId: input.userId!,
+          action: AuditLogAction.UPDATE,
+          entityType: "Branch_Delivery_Settings",
+          entityId: input.branchId,
+          newData: {
+            branchDeliverySettings: validatedData.branchDeliverySettings
+          },
+          ipAddress: input.req?.ip,
+          userAgent: input.req?.headers['user-agent'],
+          createdAt: new Date(),
+          oldData: {
+            branchDeliverySettings: {
+              baseDeliveryFee: "PENDING",
+              maxDeliveryRadius: "PENDING",
+              deliveryZones: "PENDING",
+              distanceBasedFees: "PENDING"
+            }
+          },
+          branchId: input.branchId,
+        }
+      })
+
+      return await tx.branchDeliverySettings.findUnique({where: {branchId: input.branchId}});
+    });
+  }
+
 
 
   // update branch business hours

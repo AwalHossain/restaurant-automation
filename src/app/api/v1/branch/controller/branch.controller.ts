@@ -29,6 +29,47 @@ export class BranchController {
       })
     })
 
+    updateBranchBasicInfo = catchAsync(async (req: Request, res: Response) => {
+      const userId = req.user?.userId;
+      const branchId = req.params.branchId;
+      const {body} = req;
+      if (!userId) {
+        throw new ApiError(400, 'User not found');
+      }
+      body.branchId = branchId;
+      body.userId = userId;
+      body.req = req;
+      const result = await this.branchService.updateBranchBasicInfo(body);
+     
+     
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Branch basic info updated successfully",
+        data: result
+      })
+    })
+
+    updateBranchDeliverySettings = catchAsync(async (req: Request, res: Response) => {
+      const userId = req.user?.userId;
+      const branchId = req.params.branchId;
+      const {body} = req;
+      if (!userId) {
+        throw new ApiError(400, 'User not found');
+      }
+      body.branchId = branchId;
+      body.userId = userId;
+      body.req = req;
+      const result = await this.branchService.updateBranchDeliverySettings(body);
+   
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Branch delivery settings updated successfully",
+        data: result
+      })
+    })
+
     updateBranchBusinessHours = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
       if (!userId) {

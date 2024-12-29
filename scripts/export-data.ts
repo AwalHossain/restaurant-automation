@@ -10,7 +10,9 @@ async function exportData() {
   const addons = await prisma.addon.findMany()
   const variants = await prisma.foodVariant.findMany()
   const categories = await prisma.category.findMany()
-  
+  const pointsSystem = await prisma.pointsSystem.findMany()
+  const restaurants = await prisma.restaurant.findMany()
+  const promotions = await prisma.promotion.findMany()
   // Create a backup directory if it doesn't exist
   const backupDir = path.join(__dirname, '../backup')
   if (!fs.existsSync(backupDir)){
@@ -33,6 +35,10 @@ async function exportData() {
   fs.writeFileSync(
     path.join(backupDir, 'categories.json'), 
     JSON.stringify(categories, null, 2)
+  )
+  fs.writeFileSync(
+    path.join(backupDir, 'points-system.json'), 
+    JSON.stringify(pointsSystem, null, 2)
   )
 
   console.log('Data exported successfully!')

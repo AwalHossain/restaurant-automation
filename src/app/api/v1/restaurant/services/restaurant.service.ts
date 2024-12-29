@@ -223,22 +223,43 @@ export class RestaurantService {
                         timezoneOffset: input.settings?.timezoneOffset
                     }
                 },
-                pointsSystem: input.pointsSystem ? {
-                    create: {
-                        isEnabled: input.pointsSystem.isEnabled,
-                        pointsRate: input.pointsSystem.pointsRate,
-                        redemptionRate: input.pointsSystem.redemptionRate,
-                        minPointsRedeem: input.pointsSystem.minPointsRedeem,
-                        maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
-                        minSpendForPoints: input.pointsSystem.minSpendForPoints,
-                        pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
-                        pointsExpiryType: input.pointsSystem.pointsExpiryType,
-                    }
-                }: undefined
+                // pointsSystem: input.pointsSystem ? {
+                //     create: {
+                //         isEnabled: input.pointsSystem.isEnabled,
+                //         pointsRate: input.pointsSystem.pointsRate,
+                //         redemptionRate: input.pointsSystem.redemptionRate,
+                //         minPointsRedeem: input.pointsSystem.minPointsRedeem,
+                //         maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
+                //         minSpendForPoints: input.pointsSystem.minSpendForPoints,
+                //         pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
+                //         pointsExpiryType: input.pointsSystem.pointsExpiryType,
+                //     }
+                // }: undefined
             }
         })
         return result;
     }
+
+
+    // update restaurant points system
+    async updateRestaurantPointsSystem(input: Partial<CreateRestaurantInput> & { restaurantId: string }) {
+        const result = await prisma.pointsSystem.update({
+            where: { restaurantId: input.restaurantId
+             },
+            data: {
+                isEnabled: input.pointsSystem?.isEnabled,
+                pointsRate: input.pointsSystem?.pointsRate,
+                redemptionRate: input.pointsSystem?.redemptionRate,
+                minPointsRedeem: input.pointsSystem?.minPointsRedeem,
+                maxPointsRedeem: input.pointsSystem?.maxPointsRedeem,
+                minSpendForPoints: input.pointsSystem?.minSpendForPoints,
+                pointsExpiryDays: input.pointsSystem?.pointsExpiryDays,
+                pointsExpiryType: input.pointsSystem?.pointsExpiryType,
+            }
+        })
+        return result;
+    }
+
 }
 
 

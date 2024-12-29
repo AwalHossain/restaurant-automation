@@ -130,6 +130,31 @@ export class BranchValidationService {
     }
   }
 
+  async validateUpdateBranchDeliverySettings(input: any) {
+    const validatedData = this.createBranchSchema.partial().parse(input);
+    try {
+     // Check if restaurant exists
+     const branch = await prisma.branch.findUnique({
+      where: { id: input.branchId }
+    });
+
+    if (!branch) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Branch not found");
+    }
+
+
+    return validatedData;
+
+
+
+
+    } catch (error) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Validation failed");
+    }
+   
+    return validatedData;
+  }
+
   private validateBusinessHours(businessHours: any[]) {
     // Check if all days of the week are covered
     const days = new Set(businessHours.map(hour => hour.dayOfWeek));
@@ -201,7 +226,7 @@ export class BranchValidationService {
 
     //  check if branch exists
     const branch = await prisma.branch.findUnique({
-      where: { id: input.id }
+      where: { id: input.branchId }
     });
 
     if(!branch){

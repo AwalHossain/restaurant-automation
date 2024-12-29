@@ -11,9 +11,7 @@ const restaurantController = new RestaurantController(
 
 router.post("/create", restaurantController.createRestaurant);
 router.get("/", restaurantController.getAllRestaurants);
-// router.get("/domain/:domain", restaurantController.getRestaurantByDomain);
-// router.post("/create-branch", restaurantController.createBranch);
-// router.get("/branches/:restaurantId", restaurantController.getAllBranches);
-// router.get("/branch/:id", restaurantController.getBranchById);
-
+router.get("/:domain/domain", restaurantController.getRestaurantByDomain);
+router.patch("/:restaurantId/update-settings", restaurantController.updateRestaurantSettings);
+router.patch("/:restaurantId/update-points-system", restaurantController.updatePointsSystem);
 export const RestaurantRoutes = router;

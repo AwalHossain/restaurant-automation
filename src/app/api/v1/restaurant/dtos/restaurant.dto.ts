@@ -19,6 +19,7 @@
 //   }
 
 import { DeliveryFeeType } from "@prisma/client";
+import { Request } from "express";
 
   
 //   model RestaurantSettings {
@@ -54,7 +55,7 @@ import { DeliveryFeeType } from "@prisma/client";
 export type CreateRestaurantInput = {
     name: string;
         domain: string;
-        restaurantType:   RestaurantType  ;
+        restaurantType: RestaurantType;
         address: string;
         latitude: string;
         longitude: string;
@@ -189,6 +190,8 @@ export type CreateBranchInput = {
     restaurantId: string;
     businessHours: BusinessHours[];
     branchDeliverySettings: BranchDeliverySettings;
+    userId: string;
+    req: Request;
 
 }
 

@@ -20,6 +20,7 @@ model User {
   password      String?
   firstName     String?
   lastName      String?
+  fullName      String?
   username      String?   @unique
   role          Role      @default(CUSTOMER)
   isActive      Boolean   @default(true)
@@ -28,6 +29,14 @@ model User {
   lastOtpSentAt DateTime?
   isMfaEnabled  Boolean   @default(false)
   mfaSecret     String?
+  image         String?
+  isDeleted     Boolean   @default(false)
+
+  // soft delete
+  deletedBy     User?     @relation("UserDeleter", fields: [deletedById], references: [id])
+  deletedById   String?
+  deletedAt     DateTime?
+  deletedUsers  User[]    @relation("UserDeleter")
 
   // Admin specific fields
   branchId     String?
@@ -45,6 +54,8 @@ model User {
   updatedFoods Food[] @relation("FoodUpdater")
   deletedAddons Addon[] @relation("AddonDeleter")
   deletedBranch Branch[] @relation("BranchDeleter")
+  branchStaff BranchStaff[]
+  
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -60,7 +71,6 @@ model User {
   cart          Cart[]
   notifications Notification[]
   auditLogs     AuditLog[]
-  deletedAt     DateTime? // Soft delete
   Manager       Manager?
   Address       Address[]
   Feedback      Feedback[]
@@ -86,10 +96,14 @@ model OTP {
 }
 
 enum Role {
-  SUPER_ADMIN
-  ADMIN
-  MANAGER
-  CUSTOMER
+SUPER_ADMIN    // Full system access
+  ADMIN          // Multiple branch access
+  MANAGER        // Single branch access
+  MODERATOR      // Limited branch access
+  RIDER          // Delivery access
+  CUSTOMER       // Basic access
+  STAFF          // Branch staff access
+  DELIVERY_BOY   // Delivery access
 }
 
 model LoginHistory {
@@ -183,6 +197,27 @@ model Branch {
   branchFood          BranchFood[]
   branchDeliverySettings BranchDeliverySettings[]
   checkouts           Checkout[]
+  branchStaff BranchStaff[]
+}
+
+// branch staff management
+model BranchStaff {
+  id        String   @id @default(cuid())
+  userId    String
+
+ role      Role  // Admin, manager, rider, customer
+ isActive  Boolean @default(true)
+
+ 
+
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, branchId])
 }
 
 

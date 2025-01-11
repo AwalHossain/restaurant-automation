@@ -16,7 +16,8 @@
     "lint-prettier": "yarn lint:check && yarn prettier:check",
     "test": "echo \"Error: no test specified\" && exit 1",
     "backup-db": "ts-node scripts/export-data.ts",
-    "restore-db": "ts-node scripts/import-data.ts"
+    "restore-db": "ts-node scripts/import-data.ts",
+    "populate-checkout-items": "ts-node prisma/migrations/populate_checkout_items.ts"
   },
   "author": "Programming Hero",
   "license": "ISC",
@@ -39,6 +40,8 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.3.0",
+    "@ngneat/falso": "^7.3.0",
     "@prisma/client": "^5.22.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.7",

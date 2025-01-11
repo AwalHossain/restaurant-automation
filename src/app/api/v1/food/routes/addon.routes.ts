@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
-import auth from "../../../../middlewares/auth";
+import auth from "../../../../middlewares/auth/auth-middleware";
 import { ControllerFactory } from "../factories/controller.factory";
 
 const addonController = ControllerFactory.createAddonController();

@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { ENUM_USER_ROLE } from '../../../../../enums/user';
-import auth from '../../../../middlewares/auth';
+import auth from '../../../../middlewares/auth/auth-middleware';
 import { BranchController } from '../controller/branch.controller';
 
 

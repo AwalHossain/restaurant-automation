@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
 import { ImageService } from "../../../../../services/foodImage.services";
-import auth from "../../../../middlewares/auth";
+import auth from "../../../../middlewares/auth/auth-middleware";
 import { PromotionController } from "../controllers/promotion.controller";
 import { PromotionService } from "../services/promotion.services";
 import { PromotionValidationService } from "../validation/promotion-validation.service";

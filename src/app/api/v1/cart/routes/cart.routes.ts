@@ -1,6 +1,6 @@
 
 import express from 'express';
-import auth from '../../../../middlewares/auth';
+import auth from '../../../../middlewares/auth/auth-middleware';
 import { CartController } from '../controllers/cart.controller';
 import { CartService } from '../services/cart.service';
 

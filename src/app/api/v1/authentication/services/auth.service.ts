@@ -228,7 +228,7 @@ async userLogin(input: LoginUserInput) {
   // }
 
   // Admin registration
-  async adminRegister(input: AdminRegisterInput) {
+  async staffRegister(input: AdminRegisterInput) {
     const existingAdmin = await prisma.user.findUnique({
       where: { username: input.username }
     });
@@ -246,10 +246,11 @@ async userLogin(input: LoginUserInput) {
       data: {
         username: input.username,
         password: hashedPassword,
-        role: input.role,
+        role: Role.STAFF,
         phone: input.phone,
       }
-    });
+    }
+  );
 
     const accessToken = JwtUtils.generateAccessToken({ userId: admin.id, role: admin.role });
     const refreshToken = JwtUtils.generateRefreshToken({ userId: admin.id, role: admin.role });
@@ -263,7 +264,7 @@ async userLogin(input: LoginUserInput) {
   }
 
   // Admin login
-async adminLogin(input: AdminLoginInput) {
+async staffLogin(input: AdminLoginInput) {
   if (!input.username || !input.password) {
     throw new ApiError(400, 'Username and password are required');
   }
@@ -271,6 +272,9 @@ async adminLogin(input: AdminLoginInput) {
   const admin = await prisma.user.findUnique({
     where: { 
       username: input.username,
+    },
+    include: {
+      branchStaff: true,
     }
   });
 
@@ -278,7 +282,7 @@ async adminLogin(input: AdminLoginInput) {
   
 
   // Check if user exists and is an admin type user
-  if (!admin || !['ADMIN', 'SUPER_ADMIN', 'MANAGER'].includes(admin.role)) {
+  if (!admin || !['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'DELIVERY_BOY', 'MODERATOR', 'RIDER'].includes(admin.role)) {
     throw new ApiError(401, 'Invalid credentials');
   }
 

@@ -6,9 +6,19 @@ import { z } from "zod";
 
 
 export const addStaffDto = z.object({
-    userId: z.string(),
-    branchId: z.string(),
-    role: z.enum([Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.RIDER, Role.CUSTOMER, Role.STAFF, Role.DELIVERY_BOY]),
+    userId: z.string().min(1, 'User ID is required'),
+    branchId: z.string().min(1, 'Branch ID is required'),
+    role: z.enum([Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.RIDER, Role.CUSTOMER, Role.STAFF, Role.DELIVERY_BOY], {
+        errorMap: () => ({ message: "Invalid role" })
+    }),
+    isActive: z.boolean().optional(),
+});
+export const updateStaffRoleDto = z.object({
+    userId: z.string().min(1, 'User ID is required'),
+    branchId: z.string().min(1, 'Branch ID is required'),
+    role: z.enum([Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.RIDER, Role.CUSTOMER, Role.STAFF, Role.DELIVERY_BOY], {
+        errorMap: () => ({ message: "Invalid role" })
+    }).optional(),
     isActive: z.boolean().optional(),
 });
 
@@ -25,10 +35,8 @@ export const permissionsDto = z.object({
     canViewSettings: z.boolean().optional(),
 })
 
-export const updateStaffDto = addStaffDto.partial();
 
 export type AddStaffDto = z.infer<typeof addStaffDto>;
-export type UpdateStaffDto = z.infer<typeof updateStaffDto>;
-
+export type UpdateStaffRoleDto = z.infer<typeof updateStaffRoleDto>;
 
 

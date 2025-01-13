@@ -65,6 +65,7 @@ export type CreateRestaurantInput = {
         description?: string;
         socialMediaLinks?: string[];
         isActive?: boolean;
+        isSingleBranch?: boolean;
     ratings?: number;
     openDate?: Date;
     featured?: boolean;

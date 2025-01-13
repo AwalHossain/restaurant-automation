@@ -114,6 +114,7 @@ export class BranchService {
         BusinessHours: true,
         branchDeliverySettings: true,
         managers: true,
+        branchStaff: true,
       }
     });
 
@@ -215,9 +216,30 @@ export class BranchService {
 
   async updateBranchDeliverySettings(input: Partial<CreateBranchInput> & { branchId: string }) {
     const validatedData = await this.branchValidationService.validateUpdateBranchDeliverySettings(input);
-    console.log(validatedData, "validated data");
+    
     return await prisma.$transaction(async (tx) => {
-      await tx.branchDeliverySettings.update({
+      // First check if the record exists
+      const existingSettings = await tx.branchDeliverySettings.findUnique({
+        where: { branchId: input.branchId }
+      });
+      
+      console.log('Existing Settings:', existingSettings); // Debug log
+
+      if (!existingSettings) {
+        // Create if doesn't exist
+        return await tx.branchDeliverySettings.create({
+          data: {
+            branchId: input.branchId,
+            baseDeliveryFee: validatedData.branchDeliverySettings?.baseDeliveryFee ?? 0,
+            maxDeliveryRadius: validatedData.branchDeliverySettings?.maxDeliveryRadius ?? 0,
+            distanceBasedFees: validatedData.branchDeliverySettings?.distanceBasedFees ?? [],
+            deliveryZones: validatedData.branchDeliverySettings?.deliveryZones ?? []
+          }
+        });
+      }
+
+      // Update if exists
+      return await tx.branchDeliverySettings.update({
         where: { branchId: input.branchId },
         data: {
           baseDeliveryFee: validatedData.branchDeliverySettings?.baseDeliveryFee,
@@ -226,36 +248,8 @@ export class BranchService {
           deliveryZones: validatedData.branchDeliverySettings?.deliveryZones
         }
       });
-
-      // create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: input.userId!,
-          action: AuditLogAction.UPDATE,
-          entityType: "Branch_Delivery_Settings",
-          entityId: input.branchId,
-          newData: {
-            branchDeliverySettings: validatedData.branchDeliverySettings
-          },
-          ipAddress: input.req?.ip,
-          userAgent: input.req?.headers['user-agent'],
-          createdAt: new Date(),
-          oldData: {
-            branchDeliverySettings: {
-              baseDeliveryFee: "PENDING",
-              maxDeliveryRadius: "PENDING",
-              deliveryZones: "PENDING",
-              distanceBasedFees: "PENDING"
-            }
-          },
-          branchId: input.branchId,
-        }
-      })
-
-      return await tx.branchDeliverySettings.findUnique({where: {branchId: input.branchId}});
     });
-  }
-
+}
 
 
   // update branch business hours

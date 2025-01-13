@@ -4,8 +4,8 @@ import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
 import { getPermissions } from "../../../../../helpers/getPermission";
 import { prisma } from "../../../../../shared/prisma";
-import { AddStaffDto, permissionsDto, UpdateStaffDto } from "../dtos/branch-staff.dto";
-
+import { userSelect } from "../../../../../types/food.types";
+import { AddStaffDto, permissionsDto, UpdateStaffRoleDto } from "../dtos/branch-staff.dto";
 
 
 export class BranchStaffService {
@@ -32,12 +32,17 @@ export class BranchStaffService {
         }
 
         // check if user is already a staff of the branch
-        const existingStaff = await prisma.branchStaff.findFirst({
+        const existingStaff = await prisma.branchStaff.findUnique({
             where: {
-                userId: user.id,
-                branchId: branch.id
+                userId_branchId:{
+                    userId: user.id,
+                    branchId: branch.id
+                }
+                
             }
         })
+
+        console.log(existingStaff, "existingStaff")
 
         if (existingStaff) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'User is already a staff of this branch', 'USER_ALREADY_STAFF');
@@ -81,13 +86,16 @@ export class BranchStaffService {
         return branchStaff;
     }
 
-    async removeStaffFromBranch(branchId: string, staffId: string) {
+    async removeStaffFromBranch(branchId: string, userId: string) {
+        console.log(branchId, userId, "branchId, userId")
         const branchStaff = await prisma.branchStaff.findFirst({
             where: {
                 branchId,
-                userId: staffId
+                userId
             }
         })
+
+        console.log(branchStaff, "branchStaff")
 
         if (!branchStaff) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'STAFF_NOT_FOUND');
@@ -101,39 +109,79 @@ export class BranchStaffService {
     }
 
     // update concurrent staff role
-    async updateStaffRole(input: UpdateStaffDto) {
-
+    async updateStaffRole(input: UpdateStaffRoleDto) {
+        console.log(input, "input")
         try {
             const result = await prisma.$transaction(async (tx)=>{
                 // lock the record for update
-                const currentStaff = await tx.branchStaff.findUnique({
-                    where:{
-                        userId_branchId:{
-                            branchId: input.branchId!,
-                            userId: input.userId!
-                        }
-                    },
+
+                const branch = await prisma.branch.findUnique({
+                    where: {
+                        id: input.branchId
+                    }
                 })
-                if(!currentStaff){
+        
+                if (!branch) {
+                    throw new Error('Branch not found');
+                }
+        
+                const user = await prisma.user.findUnique({
+                    where: {
+                        id: input.userId
+                    }
+                })
+
+                console.log(user, "user",branch)
+
+                const existingStaff = await prisma.branchStaff.findUnique({
+                    where: {
+                        userId_branchId:{
+                            userId: user?.id!,
+                            branchId: branch.id
+                        }
+                        
+                    }
+                })
+                console.log(existingStaff, "existingStaff")
+                if(!existingStaff){
                     throw new ApiError(httpStatus.BAD_REQUEST, 'STAFF_NOT_FOUND');
                 }
                 // update the record
-              return await tx.branchStaff.update({
-                    where: { id: currentStaff.id },
+               const updatedStaff = await tx.branchStaff.update({
+                    where: { id: existingStaff.id },
                     data: { role: input.role, isActive: input.isActive ?? true }
                 })
+
+                // log the staff updated
+                await tx.auditLog.create({
+                    data: {
+                        action: AuditLogAction.UPDATE,
+                        userId: existingStaff.userId,
+                        entityId: existingStaff.id,
+                        entityType: "BRANCH_STAFF",
+                        newData: updatedStaff,
+                    }
+                })
+
+                return updatedStaff;
+
             })
             return result;
         } catch (error) {
+            console.log(error, "error")
             throw new ApiError(httpStatus.BAD_REQUEST, 'STAFF_NOT_FOUND');
         }
     }
 
     async getAvailableStaffByBranchId(branchId: string) {
+        console.log(branchId, "branchId")
         const branchStaff = await prisma.branchStaff.findMany({
             where: { branchId, isActive: true },
-            include: { user: true }
-        })
+            include: {
+                user: userSelect as any
+            }
+        });
+
         return branchStaff;
     }
 
@@ -141,7 +189,9 @@ export class BranchStaffService {
     async getBranchStaffById(branchId: string, staffId: string) {
         const branchStaff = await prisma.branchStaff.findFirst({
             where: { branchId, userId: staffId },
-            include: { user: true }
+            include: {
+                user: userSelect as any
+            }
         })
 
         if (!branchStaff) {
@@ -175,6 +225,8 @@ export class BranchStaffService {
 
             }
         })
+
+        console.log(userWithPermissions, "userWithPermissions")
     
         // create a permission map for frontend use
         const permissions = {
@@ -194,6 +246,8 @@ export class BranchStaffService {
             }, {})
          
         }
+
+        return permissions;
     }
 
 }

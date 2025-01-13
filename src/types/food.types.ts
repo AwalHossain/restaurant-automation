@@ -33,3 +33,31 @@ export interface AddonImageSpecs {
   imageUrl: string;
   imageSize: number;
 }
+
+
+export const userSelect = {
+  select: {    // Wrap fields in a select object
+    id: true,
+    email: true,
+    username: true,
+    fullName: true,
+    firstName: true,
+    lastName: true,
+    phone: true,
+    role: true,
+    isActive: true,
+    isVerified: true,
+    otpAttempts: true,
+    lastOtpSentAt: true,
+    createdAt: true,
+    updatedAt: true,
+    image: true,
+    isDeleted: true,
+    deletedById: true,
+    deletedAt: true,
+    branchId: true,
+    lastLoginAt: true,
+    isMfaEnabled: true,
+    mfaSecret: true,
+  }
+} as const;

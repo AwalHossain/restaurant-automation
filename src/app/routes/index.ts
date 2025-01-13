@@ -1,5 +1,6 @@
 import express from "express";
 import { AdminAuthRoutes } from "../api/v1/authentication/routes/auth.routes";
+import { BranchStaffRoutes } from "../api/v1/branch-staff/routes/branch-staff.routes";
 import { branchRoutes } from "../api/v1/branch/routes/branch.route";
 import { campaignRoutes } from "../api/v1/campaign/routes/campaign.routes";
 import { cartRoutes } from "../api/v1/cart/routes/cart.routes";
@@ -64,6 +65,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/branch",
     route: branchRoutes
+  },
+  {
+    path: "/branch-staff",
+    route: BranchStaffRoutes
   }
   // Add more routes as needed
 ];

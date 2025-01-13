@@ -16,14 +16,13 @@ branchStaffController.addStaffToBranch
 );
 
 // remove staff from branch
-router.delete('/:branchId/remove-staff-from-branch/:staffId', auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER), 
+router.delete('/:branchId/remove-staff-from-branch/:userId', auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER), 
 branchAuth([Role.ADMIN, Role.MANAGER]),
 branchStaffController.removeStaffFromBranch
 );
 
 // update staff role
-router.patch('/:branchId/update-staff-role/:staffId', 
-auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER), 
+router.patch('/:branchId/update-staff-role/:userId', 
 branchAuth([Role.ADMIN, Role.MANAGER]),
 branchStaffController.updateStaffRole
 );
@@ -35,16 +34,16 @@ branchStaffController.getAvailableStaffByBranchId
 );
 
 // get branch staff by id
-router.get('/:branchId/get-branch-staff/:staffId', auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER), 
+router.get('/:branchId/get-branch-staff/:userId', 
 branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
 branchStaffController.getBranchStaffById
 );
 
 // get branch staff permissions
-router.get('/:branchId/get-branch-staff-permissions', auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER), 
-branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
+router.get('/:branchId/get-branch-staff-permissions',
+branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.STAFF, Role.DELIVERY_BOY, Role.RIDER]),
 branchStaffController.getBranchStaffPermissions
 );
 
-export default router;
+export const BranchStaffRoutes = router;
 

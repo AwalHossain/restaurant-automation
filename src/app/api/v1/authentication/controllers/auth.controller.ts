@@ -98,8 +98,10 @@ export class AuthController {
 
 
    // Admin registration (username/password based)
-   adminRegister = catchAsync(async (req: Request, res: Response) => {
-    const { user, accessToken, refreshToken } = await this.authService.adminRegister(req.body);
+   staffRegister = catchAsync(async (req: Request, res: Response) => {
+    const {username, password, phone, role} = req.body;
+    // const role = req.user?.role;
+    const { user, accessToken, refreshToken } = await this.authService.staffRegister({username, password, phone, role});
 
     // ... existing cookie setting code ...
   // Set cookies
@@ -129,10 +131,14 @@ export class AuthController {
   });
 
    // Admin login
-   adminLogin = catchAsync(async (req: Request, res: Response) => {
+   staffLogin = catchAsync(async (req: Request, res: Response) => {
     console.log(req.body, "req.body");
-    
-    const { user, accessToken, refreshToken } = await this.authService.adminLogin(req.body);
+    // const validRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.STAFF, Role.RIDER, Role.DELIVERY_BOY]
+    // if(!validRoles.includes(req.body.role)) {
+    //   throw new ApiError(400, "Invalid role");
+    // }
+    const {username, password} = req.body;
+    const { user, accessToken, refreshToken } = await this.authService.staffLogin({username, password});
 
     // ... existing cookie setting code ...
   // Set cookies

@@ -1,5 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 
+async function excludePasswordMiddleware(params: any, next: any) {
+  const result = await next(params);
+  
+  if (params?.model === 'User') {
+    if (Array.isArray(result)) {
+      result.forEach(item => delete item.password);
+    } else if (result && typeof result === 'object') {
+      delete result.password;
+    }
+  }
+  return result;
+}
+
 class PrismaService {
   private static instance: PrismaClient;
 
@@ -10,16 +23,18 @@ class PrismaService {
       PrismaService.instance = new PrismaClient({
         log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
       });
+      
+      // Add middleware for password exclusion
+      // PrismaService.instance.$use(excludePasswordMiddleware);
     }
 
     return PrismaService.instance;
   }
 }
 
-// Export a singleton instance
 export const prisma = PrismaService.getInstance();
 
-// Handle cleanup on app termination
+// Cleanup
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });

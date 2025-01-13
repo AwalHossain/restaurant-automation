@@ -8,8 +8,11 @@ router.post('/send-otp',  controller.initiateUserRegistration);
 router.post('/verify-otp', controller.verifyOTP);
 router.post('/register-user', controller.completeUserRegistration);
 router.post('/login-user', controller.userLogin);
-router.post('/register-admin', controller.adminRegister);
-router.post('/login-admin', controller.adminLogin);
+
+
+// staff/Admin routes (for internal use only)
+router.post('/staff/register', controller.staffRegister);
+router.post('/staff/login', controller.staffLogin);
 
 
 export const AdminAuthRoutes = router;

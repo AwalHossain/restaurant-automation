@@ -20,6 +20,7 @@ export class RestaurantService {
                 socialMediaLinks: input.socialMediaLinks,
                 ratings: input.ratings,
                 isActive: input.isActive,
+                isSingleBranch: input.isSingleBranch,
                 settings: {
                     create:{
                         currency: input.settings?.currency || 'BDT',
@@ -187,6 +188,7 @@ export class RestaurantService {
                 socialMediaLinks: input.socialMediaLinks,
                 ratings: input.ratings,
                 isActive: input.isActive,
+                isSingleBranch: input.isSingleBranch,
                 settings: {
                     update:{
                         updatedAt: new Date(),

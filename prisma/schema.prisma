@@ -740,15 +740,15 @@ model RestaurantSettings {
 
   // Distance-based delivery fees
   distanceBasedFees Json? // Example:
-
-  //   "baseFee": 50,
-  //   "perKmCharge": 10,
-  //   "ranges": [
-  //     {"minKm": 0, "maxKm": 2, "fee": 60},
-  //     {"minKm": 2, "maxKm": 5, "fee": 80},
-  //     {"minKm": 5, "maxKm": 8, "fee": 120}
-  //   ]
-  // } */
+// {
+//     "baseFee": 50,
+//     "perKmCharge": 10,
+//     "ranges": [
+//       {"minKm": 0, "maxKm": 2, "fee": 60},
+//       {"minKm": 2, "maxKm": 5, "fee": 80},
+//       {"minKm": 5, "maxKm": 8, "fee": 120}
+//     ]
+//   }
 
   // // Zone-based delivery fees
   zoneBasedFees Json? // Example:

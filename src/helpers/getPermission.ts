@@ -19,6 +19,7 @@ export const getPermissions = (role: Role) => {
         case Role.MANAGER:
             return {
                 ...basePermissions,
+                canViewOrders: true,
                 canManageStaff: true,
                 canManageInventory: true,
                 canViewReports: true,

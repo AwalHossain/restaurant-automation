@@ -1,4 +1,6 @@
+import { Role } from "@prisma/client";
 import { Router } from "express";
+import auth from "../../../../middlewares/auth/auth-middleware";
 import { RestaurantController } from "../controller/restaurant.controller";
 import { RestaurantService } from "../services/restaurant.service";
 import { RestaurantValidationService } from "../validations/restaurant.validation";
@@ -9,9 +11,19 @@ const restaurantController = new RestaurantController(
   new RestaurantValidationService()
 );
 
-router.post("/create", restaurantController.createRestaurant);
-router.get("/", restaurantController.getAllRestaurants);
-router.get("/:domain/domain", restaurantController.getRestaurantByDomain);
-router.patch("/:restaurantId/update-settings", restaurantController.updateRestaurantSettings);
-router.patch("/:restaurantId/update-points-system", restaurantController.updatePointsSystem);
+router.post("/create",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+   restaurantController.createRestaurant);
+router.get("/",
+  auth(Role.SUPER_ADMIN, Role.ADMIN),
+  restaurantController.getAllRestaurants);
+router.get("/:domain/domain",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  restaurantController.getRestaurantByDomain);
+router.patch("/:restaurantId/update-settings",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  restaurantController.updateRestaurantSettings);
+router.patch("/:restaurantId/update-points-system",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  restaurantController.updatePointsSystem);
 export const RestaurantRoutes = router;

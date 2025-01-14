@@ -35,15 +35,15 @@ export class BranchService {
         // delivery settings
           branchDeliverySettings: {
             create:{
-              baseDeliveryFee: validatedData.branchDeliverySettings.baseDeliveryFee ?? 0,
-              maxDeliveryRadius: validatedData.branchDeliverySettings.maxDeliveryRadius ?? 0,
-              distanceBasedFees: validatedData.branchDeliverySettings.distanceBasedFees ?? [],
-              deliveryZones: validatedData.branchDeliverySettings.deliveryZones ?? []
+              baseDeliveryFee: validatedData?.branchDeliverySettings?.baseDeliveryFee ?? 0,
+              maxDeliveryRadius: validatedData?.branchDeliverySettings?.maxDeliveryRadius ?? 0,
+              distanceBasedFees: validatedData?.branchDeliverySettings?.distanceBasedFees ?? [],
+              deliveryZones: validatedData?.branchDeliverySettings?.deliveryZones ?? []
             }
           },
           // business hours
           BusinessHours: {
-            create: validatedData.businessHours.map(h =>
+            create: validatedData?.businessHours?.map(h =>
               {
                 const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
                 return {

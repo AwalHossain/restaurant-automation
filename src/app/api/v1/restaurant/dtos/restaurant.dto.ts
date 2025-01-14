@@ -54,6 +54,7 @@ import { Request } from "express";
 //   }
 export type CreateRestaurantInput = {
     name: string;
+    userId: string;
         domain: string;
         restaurantType: RestaurantType;
         address: string;

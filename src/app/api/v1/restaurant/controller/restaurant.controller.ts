@@ -18,11 +18,11 @@ export class RestaurantController {
 
     createRestaurant = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
         const { body } = req;
-        console.log("body", body);
-
+        const userId = req.user?.userId;
+        body.userId = userId;
         await this.restaurantValidation.validateCreateRestaurantInput(body as CreateRestaurantInput);
         
-        const result = await this.restaurantService.createRestaurant(body as CreateRestaurantInput);
+        const result = await this.restaurantService.createRestaurant(body as CreateRestaurantInput, req);
         
         sendResponse(res, {
             statusCode: 201,

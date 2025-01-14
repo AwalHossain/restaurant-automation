@@ -68,7 +68,7 @@ export class BranchValidationService {
         zone: z.string(),
         fee: z.number()
       })).optional(),
-      distanceBasedFees: z.array(z.object({
+      distanceBasedFees: z.object({
         ranges: z.array(z.object({
           minKm: z.number(),
           maxKm: z.number(),
@@ -76,8 +76,7 @@ export class BranchValidationService {
         })).optional(),
         extraKmCharge: z.number(), // Extra km charge
         defaultFee: z.number() // Default fee for the zone
-        
-      })).optional(),
+      }).optional(),
       maxDeliveryRadius: z.number()
     })
   });

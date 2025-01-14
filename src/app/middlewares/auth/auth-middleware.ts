@@ -1,3 +1,4 @@
+import { Role } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { JwtPayload, Secret } from 'jsonwebtoken';
@@ -6,7 +7,7 @@ import ApiError from '../../../errors/ApiError';
 import { jwtHelpers } from '../../../helpers/jwtHelpers';
 
 const auth =
-  (...requiredRoles: string[]) =>
+  (...requiredRoles: Role[]) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       //get authorization token

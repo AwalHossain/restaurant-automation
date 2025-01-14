@@ -38,6 +38,7 @@ export class RestaurantValidationService {
   }
 
   private createRestaurantSchema = z.object({
+    userId: z.string(),
     name: z.string().min(2, 'Name must be at least 2 characters'),
     domain: z.string().min(3, 'Domain must be at least 3 characters'),
     address: z.string().min(5, 'Address must be at least 5 characters'),

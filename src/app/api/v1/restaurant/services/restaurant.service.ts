@@ -1,12 +1,12 @@
+import { Request } from "express";
 import { prisma } from "../../../../../shared/prisma";
 import { CreateBranchInput, CreateRestaurantInput } from "../dtos/restaurant.dto";
 
 
 
-
 export class RestaurantService {
 
-  async  createRestaurant(input: CreateRestaurantInput) {
+  async  createRestaurant(input: CreateRestaurantInput, req: Request) {
     const restaurant = await prisma.$transaction(async (tx) => {
         const restaurant = await tx.restaurant.create({
             data: {
@@ -101,6 +101,29 @@ export class RestaurantService {
             }
         })
 
+        // userId     String
+        // user       User           @relation(fields: [userId], references: [id])
+        // action     AuditLogAction
+        // entityType String // BRANCH, FOOD, ORDER, USER, PROMOTION, ADDON, CATEGORY, ADDRESS, PAYMENT, CHECKOUT, CHECKOUT_ITEM, CHECKOUT_ITEM_ADDON, CHECKOUT_ITEM_PROMOTION, CHECKOUT_ITEM_ADDON_PROMOTION, CHECKOUT_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION_PROMOTION
+        // entityId   String // Id of the entity being audited
+        // oldData    Json? // Old data of the entity
+        // newData    Json? // New data of the entity
+        // ipAddress  String?
+        // userAgent  String?
+
+        // update audit log
+        await tx.auditLog.create({
+            data: {
+                action: 'CREATE',
+                entityType: 'RESTAURANT',
+                entityId: restaurant.id,
+                newData: updatedRestaurant,
+                userId: input.userId,
+                ipAddress: req.ip,
+                userAgent: req.headers['user-agent'],
+            }
+        })
+
         return updatedRestaurant;
     })
 
@@ -175,6 +198,11 @@ export class RestaurantService {
     // update
     // want to add restaurantId in the input in the props of the function
     async updateRestaurantSettings(input: Partial<CreateRestaurantInput> & { restaurantId: string }) {
+        console.log("input", input);
+          // First check if settings exist for this restaurant
+    const existingSettings = await prisma.restaurantSettings.findUnique({
+        where: { restaurantId: input.restaurantId }
+    });
         const result = await prisma.restaurant.update({
             where: { id: input.restaurantId },
             data: {
@@ -190,7 +218,8 @@ export class RestaurantService {
                 isActive: input.isActive,
                 isSingleBranch: input.isSingleBranch,
                 settings: {
-                    update:{
+                    // If settings don't exist, create them; if they do, update them
+                    [existingSettings ? 'update' : 'create']: {
                         updatedAt: new Date(),
                         lastUpdatedById: input?.settings?.lastUpdatedById,
                         currency: input.settings?.currency,
@@ -224,7 +253,7 @@ export class RestaurantService {
                         feedbackResponseDelay: input.settings?.feedbackResponseDelay,
                         timezoneOffset: input.settings?.timezoneOffset
                     }
-                },
+                }
                 // pointsSystem: input.pointsSystem ? {
                 //     create: {
                 //         isEnabled: input.pointsSystem.isEnabled,
@@ -245,10 +274,23 @@ export class RestaurantService {
 
     // update restaurant points system
     async updateRestaurantPointsSystem(input: Partial<CreateRestaurantInput> & { restaurantId: string }) {
-        const result = await prisma.pointsSystem.update({
+       
+       
+        const result = await prisma.pointsSystem.upsert({
             where: { restaurantId: input.restaurantId
              },
-            data: {
+            create: {
+                restaurantId: input.restaurantId,
+                isEnabled: input.pointsSystem?.isEnabled ?? false,
+                pointsRate: input.pointsSystem?.pointsRate ?? 1.00,
+                redemptionRate: input.pointsSystem?.redemptionRate ?? 0.50,
+                minPointsRedeem: input.pointsSystem?.minPointsRedeem ?? 100,
+                maxPointsRedeem: input.pointsSystem?.maxPointsRedeem ?? 10000,
+                minSpendForPoints: input.pointsSystem?.minSpendForPoints ?? 100,
+                pointsExpiryDays: input.pointsSystem?.pointsExpiryDays ?? 30,
+                pointsExpiryType: input.pointsSystem?.pointsExpiryType ?? "DAYS",
+            },
+            update: {
                 isEnabled: input.pointsSystem?.isEnabled,
                 pointsRate: input.pointsSystem?.pointsRate,
                 redemptionRate: input.pointsSystem?.redemptionRate,
@@ -256,7 +298,7 @@ export class RestaurantService {
                 maxPointsRedeem: input.pointsSystem?.maxPointsRedeem,
                 minSpendForPoints: input.pointsSystem?.minSpendForPoints,
                 pointsExpiryDays: input.pointsSystem?.pointsExpiryDays,
-                pointsExpiryType: input.pointsSystem?.pointsExpiryType,
+                pointsExpiryType: input.pointsSystem?.pointsExpiryType
             }
         })
         return result;

@@ -18,7 +18,7 @@ export class BranchValidationService {
     ] as const;
 
     private readonly businessHoursSchema = z.object({
-      dayOfWeek: z.number().min(0).max(6),
+      dayOfWeek: z.number().min(0).max(6).transform(n=>n.toString()),
       openingTime: z.string().regex(
         /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
         "Opening time must be in 24-hour format (HH:mm)"
@@ -61,7 +61,7 @@ export class BranchValidationService {
     isTakeawayAvailable: z.boolean().optional().default(true),
     isDineInAvailable: z.boolean().optional().default(true),
     restaurantId: z.string(),
-    businessHours: z.array(this.businessHoursSchema),
+    businessHours: z.array(this.businessHoursSchema).optional(),
     branchDeliverySettings: z.object({
       baseDeliveryFee: z.number(),
       deliveryZones: z.array(z.object({
@@ -78,7 +78,7 @@ export class BranchValidationService {
         defaultFee: z.number() // Default fee for the zone
       }).optional(),
       maxDeliveryRadius: z.number()
-    })
+    }).optional()
   });
 
   async validateCreateBranch(input: any) {
@@ -106,8 +106,16 @@ export class BranchValidationService {
         throw new ApiError(httpStatus.BAD_REQUEST, "Branch name already exists for this restaurant");
       }
 
-      // Validate business hours
-      this.validateBusinessHours(validatedData.businessHours);
+
+      // create default business hours if not provided
+      if(!validatedData.businessHours){
+        validatedData.businessHours = this.getDefaultBusinessHours();
+      }
+
+      // create default delivery settings if not provided
+      if(!validatedData.branchDeliverySettings){
+        validatedData.branchDeliverySettings = this.getDefaultDeliverySettings();
+      }
 
       return validatedData;
     } catch (error) {
@@ -275,7 +283,7 @@ export class BranchValidationService {
             if(orderStart < openTime || orderEnd > closeTime){
              throw new ApiError(
                httpStatus.BAD_REQUEST,
-               `Order receiving hours must be within business hours for ${this.DAYS_OF_WEEK[validated.dayOfWeek!]}`
+               `Order receiving hours must be within business hours for ${this.DAYS_OF_WEEK[Number(validated?.dayOfWeek!)]}`
              );
             }
           }
@@ -308,5 +316,44 @@ export class BranchValidationService {
       }
       throw error;
     }
+  }
+
+
+  // create default business hours
+  private getDefaultBusinessHours(){
+    return this.DAYS_OF_WEEK.map((_, index)=>({
+      dayOfWeek: index.toString(),
+      openingTime: "09:00",
+      closingTime: "22:00",
+      isClosed: false,
+      orderReceivingStart: "09:30",
+      orderReceivingEnd: "21:30",
+      temporaryClose: false,
+      temporaryCloseStart: undefined,
+      temporaryCloseEnd: undefined,
+      temporaryCloseReasonMessage: undefined
+    }))
+  }
+
+  // Create default Delivery Settings
+  private getDefaultDeliverySettings(){
+    return {
+      baseDeliveryFee: 60,
+      maxDeliveryRadius: 5,
+      distanceBasedFees: {
+        ranges: [
+          { minKm: 0, maxKm: 2, fee: 60 },
+          { minKm: 2, maxKm: 3, fee: 80 },
+          { minKm: 3, maxKm: 5, fee: 100 }
+        ],
+        extraKmCharge: 30,
+        defaultFee: 60
+      },
+      deliveryZones: [
+        { zone: "Zone 1", fee: 60 },
+        { zone: "Zone 2", fee: 80 },
+        { zone: "Zone 3", fee: 100 }
+      ]
+    };
   }
 }

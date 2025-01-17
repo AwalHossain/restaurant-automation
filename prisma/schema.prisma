@@ -15,6 +15,7 @@ datasource db {
 
 model User {
   id            String    @id @default(uuid())
+  tenantId      String?
   email         String?   @unique
   phone         String    @unique
   password      String?
@@ -37,11 +38,13 @@ model User {
   deletedById  String?
   deletedAt    DateTime?
   deletedUsers User[]    @relation("UserDeleter")
+  
 
   // Admin specific fields
-  branchId     String?
-  branch       Branch?        @relation(fields: [branchId], references: [id])
-  loginHistory LoginHistory[]
+  restaurantAdmin Restaurant? @relation("RestaurantAdmin")
+  branchId          String?
+  branch            Branch?        @relation(fields: [branchId], references: [id])
+  loginHistory      LoginHistory[]
 
   userPromotions UserPromotion[]
 
@@ -61,6 +64,7 @@ model User {
   lastLoginAt DateTime?
 
   // Relations
+  restaurantStaff RestaurantStaff[] @relation("RestaurantStaff")
   createdAddons Addon[] @relation("AddonCreator") // Changed from Addon
   updatedAddons Addon[] @relation("AddonUpdater") // Changed from Addon
 
@@ -78,9 +82,16 @@ model User {
 
   updatedRestaurantSettings RestaurantSettings[] @relation("RestaurantSettingsUpdater")
 
-  @@index([phone, isActive])
-  @@index([email, isActive])
-  @@index([username, isActive])
+  @@unique([phone, tenantId])    // Allow same phone across different tenants
+  @@unique([email, tenantId])    // Allow same email across different tenants
+  @@unique([username, tenantId]) // Allow same username across different tenants
+  
+  @@index([tenantId])           // For tenant filtering
+  @@index([phone, isActive])    // For phone + active status queries
+  @@index([email, isActive])    // For email + active status queries
+  @@index([username, isActive]) // For username + active status queries
+  @@unique([tenantId, isActive])
+
   @@map("users")
 }
 
@@ -97,12 +108,22 @@ model OTP {
 enum Role {
   SUPER_ADMIN // Full system access
   ADMIN // Multiple branch access
+  SUB_ADMIN // Single branch access
   MANAGER // Single branch access
   MODERATOR // Limited branch access
   RIDER // Delivery access
   CUSTOMER // Basic access
   STAFF // Branch staff access
   DELIVERY_BOY // Delivery access
+}
+
+enum StaffRole {
+  ADMIN
+  SUB_ADMIN
+  MANAGER
+  MODERATOR
+  RIDER
+  STAFF
 }
 
 model LoginHistory {
@@ -144,6 +165,7 @@ model RefreshToken {
 model Branch {
   id                  String    @id @default(cuid())
   name                String
+  tenantId            String
   description         String?
   address             String
   createdAt           DateTime  @default(now())
@@ -193,14 +215,18 @@ model Branch {
   branchDeliverySettings BranchDeliverySettings[]
   checkouts              Checkout[]
   branchStaff            BranchStaff[]
+
+  @@index([tenantId])
+  @@index([restaurantId])
 }
 
 // branch staff management
 model BranchStaff {
   id     String @id @default(cuid())
   userId String
+  tenantId String
 
-  role     Role // Admin, manager, rider, customer
+  role     BranchStaffRole // Admin, manager, rider, customer
   isActive Boolean @default(true)
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,7 +236,19 @@ model BranchStaff {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, branchId])
+  @@index([tenantId])
 }
+
+enum BranchStaffRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  MODERATOR
+  STAFF
+  RIDER
+}
+
+
 
 model BranchFood {
   id          String   @id @default(cuid())
@@ -268,6 +306,7 @@ model Manager {
 
 model Category {
   id          String     @id @default(cuid())
+  tenantId    String
   name        String
   description String?
   parentId    String? // For subcategories
@@ -277,10 +316,13 @@ model Category {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   isActive    Boolean    @default(true)
+
+  @@index([tenantId])
 }
 
 model Food {
   id            String         @id @default(cuid())
+  tenantId      String
   name          String
   description   String?
   basePrice     Decimal        @db.Decimal(10, 2)
@@ -336,6 +378,7 @@ model Food {
   @@index([isActive, isPopular])
   @@index([isActive, isRecommended])
   @@index([isActive, isNewArrival])
+  @@index([tenantId])
 }
 
 model FoodImage {
@@ -380,6 +423,7 @@ enum FoodStatus {
 // New model needed
 model Campaign {
   id                 String          @id @default(cuid())
+  tenantId           String
   name               String
   description        String?
   startDate          DateTime
@@ -398,6 +442,8 @@ model Campaign {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   foods              Food[]
+
+  @@index([tenantId])
 }
 
 model CampaignImage {
@@ -427,6 +473,7 @@ enum CampaignType {
 
 model FoodVariant {
   id            String         @id @default(cuid())
+  tenantId      String
   name          String
   basePrice     Decimal        @db.Decimal(10, 2)
   isRequired    Boolean        @default(false)
@@ -439,10 +486,13 @@ model FoodVariant {
   OrderItem     OrderItem[]
   CartItem      CartItem[]
   checkoutItems CheckoutItem[]
+
+  @@index([tenantId])
 }
 
 model FoodAddon {
   id            String  @id @default(cuid())
+  tenantId      String
   foodId        String
   addonId       String
   maxSelections Int     @default(1) // Maximum times this addon can be selected
@@ -457,10 +507,12 @@ model FoodAddon {
   updatedAt DateTime @updatedAt
 
   @@unique([foodId, addonId])
+  @@index([tenantId])
 }
 
 model Addon {
   id              String         @id @default(cuid())
+  tenantId        String
   name            String
   price           Decimal        @db.Decimal(10, 2)
   description     String?
@@ -488,6 +540,8 @@ model Addon {
   priceHistory   PriceHistory[]
   OrderItemAddon OrderItemAddon[]
   CartItemAddon  CartItemAddon[]
+
+  @@index([tenantId])
 }
 
 enum AddonCategory {
@@ -579,6 +633,7 @@ model PriceHistory {
 
 model Order {
   id          String      @id @default(cuid())
+  tenantId    String
   orderNumber String      @unique
   userId      String
   user        User        @relation("UserOrders", fields: [userId], references: [id])
@@ -616,6 +671,7 @@ model Order {
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@index([branchId, status])
+  @@index([tenantId])
 }
 
 enum OrderStatus {
@@ -685,8 +741,13 @@ model Restaurant {
   id          String  @id @default(cuid())
   name        String // "Burger Palace"
   domain      String  @unique // "burgerpalace.foodapp.com"
+  tenantId    String  @unique // "burgerpalace"
   logo        String? // "https://storage.com/logos/burger-palace.png"
   description String? // "Best burgers in town since 1995"
+
+  // Primary Admin (Owner)
+  adminId String @unique
+  admin   User   @relation("RestaurantAdmin", fields: [adminId], references: [id])
 
   // Business Info
   address     String? // "123 Main Street, Gulshan-1"
@@ -708,6 +769,7 @@ model Restaurant {
   defaultBranchId String?  @unique
   defaultBranch   Branch?  @relation("DefaultBranch", fields: [defaultBranchId], references: [id])
   branches        Branch[] @relation("RestaurantBranches")
+  restaurantStaff RestaurantStaff[] @relation("RestaurantStaff")
 
   // Relations
   settings     RestaurantSettings?
@@ -715,6 +777,33 @@ model Restaurant {
   userPoints   UserPoints[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+
+  @@index([tenantId])
+}
+
+model RestaurantStaff {
+  id        String  @id @default(cuid())
+  tenantId  String  // reference to restaurant.tenantId
+  userId    String  // reference to user.id
+  isActive  Boolean @default(true)
+  role RestaurantStaffRole
+
+  restaurantId String
+  restaurant   Restaurant @relation("RestaurantStaff", fields: [restaurantId], references: [id])
+  user         User       @relation("RestaurantStaff", fields: [userId], references: [id])
+
+  @@unique([userId, restaurantId])
+  @@index([tenantId])
+}
+
+enum RestaurantStaffRole {
+  ADMIN
+  SUB_ADMIN
+  STAFF
+  MANAGER
+  MODERATOR
+  RIDER
+
 }
 
 enum restaurantType {
@@ -726,6 +815,7 @@ enum restaurantType {
 // Restaurant Settings
 model RestaurantSettings {
   id           String     @id @default(cuid())
+  tenantId     String     @unique
   restaurantId String     @unique
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -796,6 +886,10 @@ model RestaurantSettings {
   globalMessage        String?
   globalMessageEnabled Boolean @default(false)
 
+  // business critical settings
+  // subscriptionPlanId String?
+  // subscriptionPlan   SubscriptionPlan? @relation("RestaurantSubscriptionPlan", fields: [subscriptionPlanId], references: [id])
+
   customerSupportEmail    String?
   restaurantType          restaurantType? // E.g., "Fast Food", "Fine Dining"
   serviceChargePercentage Decimal?        @db.Decimal(5, 2)
@@ -811,6 +905,22 @@ model RestaurantSettings {
   lastUpdatedById         String?
   timezoneOffset          Int? // Numeric offset for timezone
   updatedAt               DateTime        @updatedAt
+}
+
+// subscription plan
+model SubscriptionPlan {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  maxBranches Int     @default(1)
+  maxUsers    Int     @default(1)
+
+  paymentProviders String[] @default([]) // ["stripe", "paypal", "razorpay"]
+
+  price       Decimal @db.Decimal(10, 2)
+
+  // relations
+  // restaurants Restaurant[] @relation("RestaurantSubscriptionPlan")
 }
 
 // Points System
@@ -880,6 +990,7 @@ model PointsHistory {
 
 model Checkout {
   id          String @id @default(cuid())
+  tenantId    String
   orderNumber String @unique
 
   // Relations
@@ -928,6 +1039,8 @@ model Checkout {
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
 model CheckoutItem {
@@ -1030,6 +1143,7 @@ model CartItemAddon {
 
 model Payment {
   id            String        @id @default(cuid())
+  tenantId      String
   orderId       String        @unique
   order         Order         @relation(fields: [orderId], references: [id])
   amount        Decimal       @db.Decimal(10, 2)
@@ -1038,10 +1152,13 @@ model Payment {
   transactionId String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  @@index([tenantId])
 }
 
 model Promotion {
   id             String        @id @default(cuid())
+  tenantId       String
   promoCode      String        @unique
   type           PromotionType
   value          Decimal       @db.Decimal(10, 2)
@@ -1079,6 +1196,8 @@ model Promotion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Order     Order[]
+
+  @@index([tenantId])
 }
 
 enum UserType {
@@ -1119,6 +1238,7 @@ enum PromotionType {
 
 model Notification {
   id        String           @id @default(cuid())
+  tenantId  String
   userId    String
   user      User             @relation(fields: [userId], references: [id])
   type      NotificationType
@@ -1127,6 +1247,8 @@ model Notification {
   isRead    Boolean          @default(false)
   data      Json?
   createdAt DateTime         @default(now())
+
+  @@index([tenantId])
 }
 
 enum NotificationType {
@@ -1134,10 +1256,12 @@ enum NotificationType {
   PROMOTION
   SYSTEM
   PAYMENT
+  STAFF_STATUS
 }
 
 model AuditLog {
   id         String         @id @default(cuid())
+  tenantId   String
   userId     String
   user       User           @relation(fields: [userId], references: [id])
   action     AuditLogAction
@@ -1152,6 +1276,9 @@ model AuditLog {
   // relations
   branchId String?
   branch   Branch? @relation(fields: [branchId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType])
 }
 
 enum AuditLogAction {
@@ -1163,6 +1290,7 @@ enum AuditLogAction {
 model Feedback {
   id        String         @id @default(cuid())
   userId    String
+  tenantId  String
   user      User           @relation(fields: [userId], references: [id])
   orderId   String?
   order     Order?         @relation(fields: [orderId], references: [id])
@@ -1176,6 +1304,7 @@ model Feedback {
 
   @@index([userId, createdAt])
   @@index([orderId])
+  @@index([tenantId])
 }
 
 enum FeedbackType {

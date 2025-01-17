@@ -22,6 +22,7 @@ export class BranchService {
       const createdBranch = await tx.branch.create({
         data: {
           name: validatedData.name,
+          tenantId: validatedData.tenantId,
           address: validatedData.address,
           phoneNumber: validatedData.phoneNumber,
           email: validatedData.email,
@@ -64,6 +65,7 @@ export class BranchService {
          auditLogs:{
           create:{
             userId,
+            tenantId: validatedData.tenantId,
             action: AuditLogAction.CREATE,
             entityType: "BRANCH",
             entityId: "PENDING",
@@ -89,6 +91,7 @@ export class BranchService {
       await tx.notification.create({
         data: {
           userId,
+          tenantId: validatedData.tenantId,
           type: NotificationType.SYSTEM,
           title: "New Branch Created",
           message: `A new branch has been created: ${createdBranch.name}`,
@@ -169,6 +172,7 @@ export class BranchService {
       await tx.auditLog.create({
         data: {
           userId: input.userId,
+          tenantId: branch.tenantId,
           action: AuditLogAction.UPDATE,
           entityType: "BRANCH",
           entityId: branch.id,
@@ -253,7 +257,7 @@ export class BranchService {
 
 
   // update branch business hours
-  async updateBranchBusinessHours(input: {branchId: string, businessHours: BusinessHours[], userId: string, req: Request}) {
+  async updateBranchBusinessHours(input: {branchId: string, businessHours: BusinessHours[], userId: string, req: Request, tenantId: string}) {
     const validatedData = await this.branchValidationService.validateUpdateBusinessHours(input.branchId, input.businessHours);
     return await prisma.$transaction(async tx => {
       
@@ -298,6 +302,7 @@ export class BranchService {
       await tx.auditLog.create({
         data: {
           userId: input.userId,
+          tenantId: input.tenantId,
           action: AuditLogAction.UPDATE,
           entityType: "Branch_Business_Hours",
           entityId: input.branchId,

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
+import ApiError from '../../../../../errors/ApiError';
 import catchAsync from '../../../../../shared/catchAsync';
 import sendResponse from '../../../../../shared/sendResponse';
 import { AuthService } from '../services/auth.service';
@@ -100,8 +101,18 @@ export class AuthController {
    // Admin registration (username/password based)
    staffRegister = catchAsync(async (req: Request, res: Response) => {
     const {username, password, phone, role} = req.body;
+    const context = req.tenantContext;
+    if(!context?.tenantId ){
+      throw new ApiError(400, "Tenant context is required");
+    }
+    const tenantId = context.tenantId;
+    const restaurantId = context.restaurantId;
+    if(!tenantId && !restaurantId){
+      throw new ApiError(400, "Tenant and restaurant context is required");
+    }
+    const data = {username, password, phone, role, tenantId, restaurantId: restaurantId!}
     // const role = req.user?.role;
-    const { user, accessToken, refreshToken } = await this.authService.staffRegister({username, password, phone, role});
+    const { user, accessToken, refreshToken } = await this.authService.staffRegister(data);
 
     // ... existing cookie setting code ...
   // Set cookies
@@ -130,6 +141,22 @@ export class AuthController {
     });
   });
 
+  superAdminRegister = catchAsync(async (req: Request, res: Response) => {
+    const {username, password, email, phone, role} = req.body;
+    const { user, accessToken, refreshToken } = await this.authService.superAdminRegister({username, password, email, phone, role});
+  
+    sendResponse(res, {
+      statusCode: httpStatus.CREATED,
+      success: true,
+      message: "Super Admin registered successfully",
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
+    });
+  });
+
    // Admin login
    staffLogin = catchAsync(async (req: Request, res: Response) => {
     console.log(req.body, "req.body");
@@ -138,7 +165,17 @@ export class AuthController {
     //   throw new ApiError(400, "Invalid role");
     // }
     const {username, password} = req.body;
-    const { user, accessToken, refreshToken } = await this.authService.staffLogin({username, password});
+    const context = req.tenantContext;
+    if(!context?.tenantId ){
+      throw new ApiError(400, "Tenant context is required");
+    }
+    const tenantId = context.tenantId;
+    const restaurantId = context.restaurantId;
+    if(!tenantId && !restaurantId){
+      throw new ApiError(400, "Tenant and restaurant context is required");
+    }
+    const data = {username, password,tenantId: tenantId!, restaurantId: restaurantId!}
+    const { user, accessToken, refreshToken } = await this.authService.staffLogin(data);
 
     // ... existing cookie setting code ...
   // Set cookies
@@ -158,6 +195,24 @@ export class AuthController {
       statusCode: httpStatus.OK,
       success: true,
       message: "Admin logged in successfully",
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
+    });
+  });
+
+superAdminLogin = catchAsync(async (req: Request, res: Response) => {
+    const {email, password} = req.body;
+
+    const data = {email, password}
+    const { user, accessToken, refreshToken } = await this.authService.superAdminLogin(data);
+  
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Super Admin logged in successfully",
       data: {
         ...user,
         accessToken,

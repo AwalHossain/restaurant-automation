@@ -4,7 +4,7 @@ import httpStatus from "http-status";
 import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
 import { CreateBranchInput } from "../../restaurant/dtos/restaurant.dto";
-import { UpdateBranchStatusInput } from "../dtos/branch.dtos";
+import { DeleteBranchInput, UpdateBranchStatusInput } from "../dtos/branch.dtos";
 import { BranchValidationService } from "../validation/branch.validation";
 
 export class BranchService {
@@ -15,13 +15,14 @@ export class BranchService {
   async createBranch(input: CreateBranchInput, userId: string, req: Request) {
     // Validate input
     const validatedData = await this.branchValidationService.validateCreateBranch(input);
-
+console.log(validatedData, "validatedData");
     // Create branch with business hours in a transaction
     const branch = await prisma.$transaction(async tx => {
       // Create the branch
       const createdBranch = await tx.branch.create({
         data: {
           name: validatedData.name,
+          description: validatedData.description,
           tenantId: validatedData.tenantId,
           address: validatedData.address,
           phoneNumber: validatedData.phoneNumber,
@@ -36,6 +37,7 @@ export class BranchService {
         // delivery settings
           branchDeliverySettings: {
             create:{
+              tenantId: validatedData?.tenantId ?? "",  
               baseDeliveryFee: validatedData?.branchDeliverySettings?.baseDeliveryFee ?? 0,
               maxDeliveryRadius: validatedData?.branchDeliverySettings?.maxDeliveryRadius ?? 0,
               distanceBasedFees: validatedData?.branchDeliverySettings?.distanceBasedFees ?? [],
@@ -48,6 +50,7 @@ export class BranchService {
               {
                 const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
                 return {
+              tenantId: validatedData?.tenantId ?? "",
               dayOfWeek: h.dayOfWeek.toString(),
               openingTime: h.openingTime,
               closingTime: h.closingTime,
@@ -81,8 +84,7 @@ export class BranchService {
         include: {
           BusinessHours: true,
           branchDeliverySettings: true,
-          managers: true,
-          auditLogs: true,
+          managers: true
         }
       });
 
@@ -224,16 +226,17 @@ export class BranchService {
     return await prisma.$transaction(async (tx) => {
       // First check if the record exists
       const existingSettings = await tx.branchDeliverySettings.findUnique({
-        where: { branchId: input.branchId }
+        where: { branchId: input.branchId, tenantId: input?.tenantId ?? "" }
       });
-      
-      console.log('Existing Settings:', existingSettings); // Debug log
+      const first = await tx.branchDeliverySettings.findFirst({where: {branchId: input.branchId, tenantId: input?.tenantId ?? ""}});
+      console.log('Existing Settings:', existingSettings, input?.tenantId, input.branchId, "first", first); // Debug log
 
       if (!existingSettings) {
         // Create if doesn't exist
         return await tx.branchDeliverySettings.create({
           data: {
             branchId: input.branchId,
+            tenantId: input?.tenantId ?? "",
             baseDeliveryFee: validatedData.branchDeliverySettings?.baseDeliveryFee ?? 0,
             maxDeliveryRadius: validatedData.branchDeliverySettings?.maxDeliveryRadius ?? 0,
             distanceBasedFees: validatedData.branchDeliverySettings?.distanceBasedFees ?? [],
@@ -257,8 +260,10 @@ export class BranchService {
 
 
   // update branch business hours
-  async updateBranchBusinessHours(input: {branchId: string, businessHours: BusinessHours[], userId: string, req: Request, tenantId: string}) {
+  async updateBranchBusinessHours(input: {branchId: string, businessHours: BusinessHours[], userId: string,tenantId: string, ipAddress: string, userAgent: string}) {
+   
     const validatedData = await this.branchValidationService.validateUpdateBusinessHours(input.branchId, input.businessHours);
+    console.log(validatedData, "validatedData", input.branchId);
     return await prisma.$transaction(async tx => {
       
       // update existing business hours
@@ -282,6 +287,7 @@ export class BranchService {
         }else{
           await tx.businessHours.create({
             data: {
+              tenantId: input?.tenantId ?? "",
               branchId: input.branchId,
               dayOfWeek: hour.dayOfWeek!.toString(),
               openingTime: hour.openingTime!,
@@ -309,8 +315,8 @@ export class BranchService {
           newData: {
             businessHours: validatedData
           },
-          ipAddress: input.req.ip,
-          userAgent: input.req.headers['user-agent']
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent
         }
       })
 
@@ -331,11 +337,11 @@ export class BranchService {
     });
   }
 
-  async deleteBranch(id: string, userId: string) {
+  async deleteBranch(input: DeleteBranchInput) {
 
     return await prisma.$transaction(async tx => {
       const existingBranch = await tx.branch.findUnique({
-        where: { id }
+        where: { id: input.branchId, tenantId: input.tenantId }
       });
 
 
@@ -344,17 +350,19 @@ export class BranchService {
 
     const deletedBranch = await tx.branch.update({
       where: {
-        id
+        id: input.branchId,
+        tenantId: input.tenantId
        },
        data: {
         isDeleted: true,
         deletedAt: new Date(),
-        deletedById: userId
+        deletedById: input.userId
        }
     });
 
     return {
       isDeleted: true,
+      deletedBranch: deletedBranch
       };
 
     });

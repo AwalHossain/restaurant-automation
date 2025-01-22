@@ -1,10 +1,10 @@
-import { Role } from "@prisma/client";
+import { BranchStaffRole, Role } from "@prisma/client";
 import ApiError from "../../../../../errors/ApiError";
 import { JwtUtils } from "../../../../../helpers/jwt.helper";
 import { generateOTP } from "../../../../../helpers/otp.helper";
 import { comparePassword, hashPassword } from "../../../../../helpers/password.helper";
 import { prisma } from "../../../../../shared/prisma";
-import { AdminLoginInput, AdminRegisterInput, LoginUserInput, RegisterUserInput } from "../dtos/auth.dto";
+import { LoginUserInput, RegisterUserInput, StaffLoginInput, StaffRegisterInput, SuperAdminLoginInput, SuperAdminRegisterInput } from "../dtos/auth.dto";
 
 
 
@@ -148,6 +148,7 @@ export class AuthService {
     const user = await prisma.user.create({
       data: {
           phone: input.phone,
+          tenantId: input.tenantId,
         firstName: input.name,
         password: hashedPassword,
         role: Role.CUSTOMER,
@@ -228,9 +229,56 @@ async userLogin(input: LoginUserInput) {
   // }
 
   // Admin registration
-  async staffRegister(input: AdminRegisterInput) {
-    const existingAdmin = await prisma.user.findUnique({
+  async staffRegister(input: StaffRegisterInput) {
+    const existingStaff = await prisma.user.findUnique({
       where: { username: input.username }
+    });
+
+    
+    console.log(existingStaff, "existingStaff");
+    
+
+    if (existingStaff) {
+      throw new ApiError(400, 'Username already exists');
+    }
+
+    const hashedPassword = await hashPassword(input.password);
+
+    const staff = await prisma.user.create({
+      data: {
+        username: input.username,
+        tenantId: input.tenantId,
+        password: hashedPassword,
+        role: input.role ?? BranchStaffRole.STAFF as BranchStaffRole,
+        phone: input.phone,
+      }
+    }
+  );
+
+  const payload = {
+    userId: staff.id,
+    role: staff.role,
+    tenantId: staff.tenantId,
+    restaurantId: input.restaurantId,
+  }
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
+
+    const { password, ...staffWithoutPassword } = staff;
+    return {
+      user: staffWithoutPassword,
+      accessToken,
+      refreshToken
+    };
+  }
+  async superAdminRegister(input: SuperAdminRegisterInput) {
+    const existingAdmin = await prisma.user.findFirst({
+      where: {
+        OR:[
+          { email: input.email },
+          { phone: input.phone },
+        ]
+      }
     });
 
     console.log(existingAdmin, "existingAdmin");
@@ -240,20 +288,75 @@ async userLogin(input: LoginUserInput) {
       throw new ApiError(400, 'Username already exists');
     }
 
+
     const hashedPassword = await hashPassword(input.password);
 
     const admin = await prisma.user.create({
       data: {
-        username: input.username,
+        email: input.email,
         password: hashedPassword,
-        role: Role.STAFF,
-        phone: input.phone,
+        role: Role.SUPER_ADMIN,
+        phone: input.phone ?? '',
       }
-    }
+    },
   );
 
-    const accessToken = JwtUtils.generateAccessToken({ userId: admin.id, role: admin.role });
-    const refreshToken = JwtUtils.generateRefreshToken({ userId: admin.id, role: admin.role });
+  const payload = {
+    userId: admin.id,
+    role: admin.role,
+    tenantId: admin.tenantId ?? '',
+    restaurantId: null
+  }
+
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
+
+    const { password, ...adminWithoutPassword } = admin;
+    return {
+      user: adminWithoutPassword,
+      accessToken,
+      refreshToken
+    };
+  }
+  async adminRegister(input: SuperAdminRegisterInput) {
+    const existingAdmin = await prisma.user.findFirst({
+      where: {
+        OR:[
+          { email: input.email },
+          { phone: input.phone },
+        ]
+      }
+    });
+
+    console.log(existingAdmin, "existingAdmin");
+    
+
+    if (existingAdmin) {
+      throw new ApiError(400, 'Username already exists');
+    }
+
+
+    const hashedPassword = await hashPassword(input.password);
+
+    const admin = await prisma.user.create({
+      data: {
+        email: input.email,
+        password: hashedPassword,
+        role: Role.ADMIN,
+        phone: input.phone ?? '',
+      }
+    },
+  );
+
+  const payload = {
+    userId: admin.id,
+    role: admin.role,
+    tenantId: admin.tenantId ?? '',
+    restaurantId: null
+  }
+
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
 
     const { password, ...adminWithoutPassword } = admin;
     return {
@@ -263,8 +366,94 @@ async userLogin(input: LoginUserInput) {
     };
   }
 
+  async superAdminLogin(input: SuperAdminLoginInput) {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: input.email },
+          { phone: input.phone },
+        ]
+      },
+      include: {
+        restaurantStaff: true,
+      }
+    });
+
+    console.log(user, "user");
+    
+
+    if (!user || user.role !== Role.SUPER_ADMIN) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const isPasswordValid = await comparePassword(input.password, user.password!);
+    if (!isPasswordValid) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const payload = {
+      userId: user.id,
+      role: user.role,
+      tenantId: user.tenantId ?? '',
+      restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+    }
+
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
+
+    const { password, ...userWithoutPassword } = user;
+    return {
+      user: userWithoutPassword,
+      accessToken,
+      refreshToken
+    };
+  }
+  async adminLogin(input: SuperAdminLoginInput) {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: input.email },
+          { phone: input.phone },
+        ]
+      },
+      include: {
+        restaurantStaff: true,
+        branchStaff: true,
+      }
+    });
+
+    console.log(user, "user");
+    
+
+    if (!user || user.role !== Role.SUPER_ADMIN) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const isPasswordValid = await comparePassword(input.password, user.password!);
+    if (!isPasswordValid) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const payload = {
+      userId: user.id,
+      role: user.role,
+      tenantId: user.tenantId ?? '',
+      restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+    }
+
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
+
+    const { password, ...userWithoutPassword } = user;
+    return {
+      user: userWithoutPassword,
+      accessToken,
+      refreshToken
+    };
+  }
+
   // Admin login
-async staffLogin(input: AdminLoginInput) {
+async staffLogin(input: StaffLoginInput) {
   if (!input.username || !input.password) {
     throw new ApiError(400, 'Username and password are required');
   }
@@ -272,8 +461,10 @@ async staffLogin(input: AdminLoginInput) {
   const admin = await prisma.user.findUnique({
     where: { 
       username: input.username,
+      tenantId: input.tenantId,
     },
     include: {
+      restaurantStaff: true,
       branchStaff: true,
     }
   });
@@ -296,16 +487,23 @@ async staffLogin(input: AdminLoginInput) {
     throw new ApiError(401, 'Invalid credentials');
   }
 
-  const accessToken = JwtUtils.generateAccessToken({ userId: admin.id, role: admin.role });
-  const refreshToken = JwtUtils.generateRefreshToken({ userId: admin.id, role: admin.role });
+  const payload = {
+    userId: admin.id,
+    role: admin.role,
+    tenantId: admin?.tenantId ?? null,
+    restaurantId: admin?.restaurantStaff[0]?.restaurantId ?? null,
+  }
 
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId: admin.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    }
-  });
+  const accessToken = JwtUtils.generateAccessToken(payload);
+  const refreshToken = JwtUtils.generateRefreshToken(payload);
+
+  // await prisma.refreshToken.create({
+  //   data: {
+  //     token: refreshToken,
+  //     userId: admin.id,
+  //     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  //   }
+  // });
 
   // Update last login
   await prisma.user.update({

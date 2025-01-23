@@ -49,6 +49,7 @@ export class BranchValidationService {
     });
 
   private readonly createBranchSchema = z.object({
+    tenantId: z.string(),
     name: z.string().min(3).max(100),
     description: z.string().optional(),
     address: z.string().min(5),

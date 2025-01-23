@@ -16,6 +16,12 @@ export class BranchController {
 
     createBranch = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
+      const tenantId = req.tenantContext?.tenantId;
+      const restaurantId = req.tenantContext?.restaurantId;
+
+      req.body.tenantId = tenantId as string;
+      req.body.restaurantId = restaurantId as string;
+
       if (!userId) {
         throw new ApiError(400, 'User not found');
       }
@@ -31,14 +37,19 @@ export class BranchController {
 
     updateBranchBasicInfo = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
-      const branchId = req.params.branchId;
+      const branchId = req.tenantContext?.branchId;
+      const tenantId = req.tenantContext?.tenantId;
+      const restaurantId = req.tenantContext?.restaurantId;
       const {body} = req;
       if (!userId) {
         throw new ApiError(400, 'User not found');
       }
       body.branchId = branchId;
+      body.tenantId = tenantId as string;
+      body.restaurantId = restaurantId as string;
       body.userId = userId;
-      body.req = req;
+      body.ipAddress = req.ip;
+      body.userAgent = req.headers['user-agent'];
       const result = await this.branchService.updateBranchBasicInfo(body);
      
      
@@ -53,13 +64,16 @@ export class BranchController {
     updateBranchDeliverySettings = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
       const branchId = req.params.branchId;
+      const tenantId = req.tenantContext?.tenantId;
       const {body} = req;
-      if (!userId) {
+      if(!userId){
         throw new ApiError(400, 'User not found');
       }
       body.branchId = branchId;
+      body.tenantId = tenantId as string;
       body.userId = userId;
-      body.req = req;
+      body.ipAddress = req.ip;
+      body.userAgent = req.headers['user-agent'];
       const result = await this.branchService.updateBranchDeliverySettings(body);
    
       sendResponse(res, {
@@ -72,16 +86,21 @@ export class BranchController {
 
     updateBranchBusinessHours = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
+      const tenantId = req.tenantContext?.tenantId;
+      const branchId = req.tenantContext?.branchId;
+      const restaurantId = req.tenantContext?.restaurantId;
       if (!userId) {
         throw new ApiError(400, 'User not found');
-        
       }
 
       const inputData = {
-        branchId: req.params.branchId,
+        branchId: branchId as string,
+        restaurantId: restaurantId as string,
         businessHours: req.body.businessHours,
         userId: userId,
-        req: req
+        tenantId: tenantId as string,
+        ipAddress: req.ip || '',
+        userAgent: req.headers['user-agent'] || ''
       }
       const result = await this.branchService.updateBranchBusinessHours(inputData);
 
@@ -138,10 +157,19 @@ export class BranchController {
 
     deleteBranch = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;  
+      const tenantId = req.tenantContext?.tenantId;
+      const branchId = req.tenantContext?.branchId;
       if (!userId) {
         throw new ApiError(400, 'User not found');
       }
-      const result = await this.branchService.deleteBranch(req.params.branchId, userId);
+
+      const inputData = {
+        branchId: branchId as string,
+        tenantId: tenantId as string,
+        userId: userId,
+        req: req
+      }
+      const result = await this.branchService.deleteBranch(inputData);
   
       sendResponse(res, {
         statusCode: httpStatus.OK,

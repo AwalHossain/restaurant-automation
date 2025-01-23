@@ -19,13 +19,14 @@ export class FoodController {
   }
 
   createFood = catchAsync(async (req: Request, res: Response) => {
-    const { file } = req;
-    if (!file) throw new ApiError(400, "Image is required");
-    const images = await this.imageService.uploadFoodImage(file);
+    // const images = await this.imageService.uploadFoodImage(file);
     const { body } = req;
-    const data = JSON.parse(body.data);
-    const { userId } = req.user as { userId: string };
-    const result = await this.foodService.createBasicFood({ ...data, images, userId });
+    const userId = req.user?.userId;
+    const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
+    const restaurantId = req.tenantContext?.restaurantId;
+
+    const result = await this.foodService.createBasicFood({ ...body, userId, tenantId, branchId, restaurantId });
 
     return res.status(201).json({
       success: true,
@@ -58,13 +59,19 @@ export class FoodController {
   updateFoodDetails = catchAsync(async (req: Request, res: Response) => {
     const { file } = req;
     const { id } = req.params;
-    const { userId } = req.user as { userId: string };
+    const userId = req.user?.userId;
+    const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
+    const restaurantId = req.tenantContext?.restaurantId;
 
     
     // Initialize update data
     let updateData: any = {
       id,
-      updatedBy: userId
+      updatedBy: userId,
+      tenantId,
+      branchId,
+      restaurantId
     };
 
 
@@ -82,16 +89,6 @@ export class FoodController {
 
     }
 
-    // If there's a file, process it
-    if (file) {
-      const images = await this.imageService.uploadFoodImage(file);
-      updateData.images = images;
-    }
-
-    // If neither data nor file is provided, throw error
-    if (!file && !req.body.data) {
-      throw new ApiError(400, "No updates provided");
-    }
     const result = await this.foodService.updateFoodDetails(updateData);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -102,7 +99,8 @@ export class FoodController {
   });
 
   getAllFoods = catchAsync(async (req: Request, res: Response) => {
-    const result = await this.foodService.getAllFoods();
+    const { branchId } = req.params;
+    const result = await this.foodService.getAllFoods(branchId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -112,19 +110,29 @@ export class FoodController {
   });
 
   getFoodById = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const result = await this.foodService.getFoodById(id);
+    const { foodId, branchId } = req.query
+    const tenantId = req.tenantContext?.tenantId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if(!tenantId || !restaurantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
+    }
+    const result = await this.foodService.getFoodById(foodId as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "Food fetched successfully",
+      message: "Get Food fetched successfully",
       data: result
     });
   });
 
   getFoodByMainCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const result = await this.foodService.getFoodByMainCategoryId(id);
+    const { branchId, categoryId } = req.query;
+    const tenantId = req.tenantContext?.tenantId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if(!tenantId || !restaurantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
+    }
+    const result = await this.foodService.getFoodByMainCategoryId(categoryId as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -134,9 +142,13 @@ export class FoodController {
   });
 
   getFoodBySubCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    console.log(id, "subcategory");
-    const result = await this.foodService.getFoodBySubCategoryId(id);
+    const { branchId, categoryId } = req.query;
+    const tenantId = req.tenantContext?.tenantId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if(!tenantId || !restaurantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
+    }
+    const result = await this.foodService.getFoodBySubCategoryId(categoryId as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -146,8 +158,13 @@ export class FoodController {
   });
 
   getFoodByCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const result = await this.foodService.getFoodsByCategory(id);
+    const { branchId, categoryId } = req.query;
+    const tenantId = req.tenantContext?.tenantId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if(!tenantId || !restaurantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
+    }
+    const result = await this.foodService.getFoodsByCategory(categoryId as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,

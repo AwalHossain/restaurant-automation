@@ -82,3 +82,11 @@ export type UpdateBranchStatusInput = {
     userId: string;
     req: Request;
 }
+
+export type DeleteBranchInput = {
+    branchId: string;
+    tenantId: string;
+    userId: string;
+    req: Request;
+}
+

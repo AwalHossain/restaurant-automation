@@ -2,6 +2,9 @@ export interface TokenPayload {
     userId: string;
     role: string;
     isMfaEnabled?: boolean;
+    tenantId?: string | null;
+    restaurantId?: string | null;
+    branchId?: string | null;
   }
   
   export interface LoginResponse {
@@ -9,6 +12,8 @@ export interface TokenPayload {
       id: string;
       email: string;
       role: string;
+      isMfaEnabled: boolean;
+
     };
   }
   

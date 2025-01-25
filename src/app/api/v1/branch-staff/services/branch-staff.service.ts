@@ -1,4 +1,4 @@
-import { AuditLogAction, Role } from "@prisma/client";
+import { AuditLogAction, BranchStaffRole, Role } from "@prisma/client";
 import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
@@ -52,7 +52,8 @@ export class BranchStaffService {
             data: {
                 userId: user.id,
                 branchId: branch.id,
-                role: input.role,
+                tenantId: branch.tenantId,
+                role: input.role as BranchStaffRole,
                 isActive: input.isActive ?? true
             },
             include: {
@@ -80,6 +81,7 @@ export class BranchStaffService {
                 entityId: branchStaff.id,
                 entityType: "BRANCH_STAFF",
                 newData: branchStaff,
+                tenantId: branch.tenantId
             }
         })
 
@@ -149,13 +151,14 @@ export class BranchStaffService {
                 // update the record
                const updatedStaff = await tx.branchStaff.update({
                     where: { id: existingStaff.id },
-                    data: { role: input.role, isActive: input.isActive ?? true }
+                    data: { role: input.role as BranchStaffRole, isActive: input.isActive ?? true }
                 })
 
                 // log the staff updated
                 await tx.auditLog.create({
                     data: {
                         action: AuditLogAction.UPDATE,
+                        tenantId: branch.tenantId,
                         userId: existingStaff.userId,
                         entityId: existingStaff.id,
                         entityType: "BRANCH_STAFF",

@@ -36,6 +36,7 @@ interface RegisterUserInput {
     email: string;
     phone?: string;
     password: string;
+    tenantId?: string;
   }
 
   interface StaffLoginInput {

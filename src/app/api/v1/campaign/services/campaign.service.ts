@@ -9,6 +9,7 @@ export class CampaignService {
         const {images, ...rest} = input;
         const result = await prisma.campaign.create({
             data: {...rest, 
+                tenantId:input.tenantId,
                 images:{
                     create: images.map((image)=>({
                         url: image.url,

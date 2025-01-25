@@ -14,6 +14,7 @@ export class CategoryService {
       // Create main category
       const mainCategory = await tx.category.create({
         data: {
+          tenantId: input.tenantId || '',
           name: input.mainCategory,
           parentId: input.parentId
         },
@@ -29,7 +30,8 @@ export class CategoryService {
         await tx.category.create({
           data: {
             name: input.subCategory,
-            parentId: mainCategory.id
+            parentId: mainCategory.id,
+            tenantId: input.tenantId || '',
           }
         });
 
@@ -121,7 +123,8 @@ export class CategoryService {
       data: {
         name: input.subCategory,
         parentId: category.id,
-        description: input.description
+        description: input.description,
+        tenantId: input.tenantId || '',
       }
     });
 

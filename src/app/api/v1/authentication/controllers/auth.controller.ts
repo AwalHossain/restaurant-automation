@@ -156,6 +156,21 @@ export class AuthController {
       },
     });
   });
+  AdminRegister = catchAsync(async (req: Request, res: Response) => {
+    const {username, password, email, phone, role} = req.body;
+    const { user, accessToken, refreshToken } = await this.authService.adminRegister({username, password, email, phone, role});
+  
+    sendResponse(res, {
+      statusCode: httpStatus.CREATED,
+      success: true,
+      message: "Super Admin registered successfully",
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
+    });
+  });
 
    // Admin login
    staffLogin = catchAsync(async (req: Request, res: Response) => {
@@ -207,6 +222,23 @@ superAdminLogin = catchAsync(async (req: Request, res: Response) => {
     const {email, password} = req.body;
 
     const data = {email, password}
+    const { user, accessToken, refreshToken } = await this.authService.adminLogin(data);
+  
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Super Admin logged in successfully",
+      data: {
+        ...user,
+        accessToken,
+        refreshToken
+      },
+    });
+  });
+AdminLogin = catchAsync(async (req: Request, res: Response) => {
+    const {email, password} = req.body;
+
+    const data = {email, password}
     const { user, accessToken, refreshToken } = await this.authService.superAdminLogin(data);
   
     sendResponse(res, {
@@ -220,6 +252,8 @@ superAdminLogin = catchAsync(async (req: Request, res: Response) => {
       },
     });
   });
+
+
 
 
 }

@@ -1,17 +1,11 @@
 import { Router } from "express";
-import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
 import auth from "../../../../middlewares/auth/auth-middleware";
+import tenantContextMiddleware from "../../../../middlewares/auth/tenant-context.middleware";
 import { ControllerFactory } from "../factories/controller.factory";
 
 const addonController = ControllerFactory.createAddonController();
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-});
 
 const router = Router();
 
@@ -19,28 +13,46 @@ const router = Router();
 router
   .route('/')
   .post(
-    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-    upload.single("image"),
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
     addonController.createAddon
   )
-  .get(addonController.getAddOns);
+  .get(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
+    addonController.getAddOns
+  );
 
 
 // active addons
-router.get('/active', addonController.getActiveAddOns);
+router.get('/active',
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
+  addonController.getActiveAddOns);
 
 // Get all food-addon relationships
-router.get('/food-addons', addonController.getAllFoodAddons);
+router.get('/food-addons', 
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
+  addonController.getAllFoodAddons);
+
+  
 // Get active food-addon relationships
-router.get('/food-addons/active', addonController.getActiveAddOns);
+router.get('/food-addons/active', 
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
+  addonController.getActiveFoodAddons);
 
 
 router
   .route('/:id')
-  .get(addonController.getAddOnById)
+  .get(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
+    addonController.getAddOnById)
   .patch(
     auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
-    upload.single("image"),
+    tenantContextMiddleware(),
     addonController.updateAddOn
   )
   // .delete(
@@ -56,6 +68,7 @@ router
 router.patch(
   '/:id/toggle',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
   addonController.toggleAddOn
 );
 
@@ -63,19 +76,25 @@ router.patch(
 router
   .route('/food/:foodId/addons')
   .post(
-    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
     addonController.createBulkFoodAddons
   )
-  .get(addonController.getFoodAddonsByFoodId);
+  .get(
+    auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
+    addonController.getFoodAddonsByFoodId);
 
 router
   .route('/food/:foodId/addon/:addonId')
   .patch(
     auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
     addonController.updateFoodAddon
   )
   .delete(
     auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+    tenantContextMiddleware(),
     addonController.deleteFoodAddon
   );
 
@@ -83,6 +102,7 @@ router
 router.patch(
   '/food/:foodId/addon/:addonId/toggle',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
   addonController.toggleFoodAddOn
 );
 

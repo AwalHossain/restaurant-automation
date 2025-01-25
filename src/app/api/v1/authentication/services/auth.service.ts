@@ -425,7 +425,7 @@ async userLogin(input: LoginUserInput) {
     console.log(user, "user");
     
 
-    if (!user || user.role !== Role.SUPER_ADMIN) {
+    if (!user || user.role !== Role.ADMIN) {
       throw new ApiError(401, 'Invalid credentials');
     }
 
@@ -447,7 +447,7 @@ async userLogin(input: LoginUserInput) {
     const { password, ...userWithoutPassword } = user;
     return {
       user: userWithoutPassword,
-      accessToken,
+      accessToken,  
       refreshToken
     };
   }

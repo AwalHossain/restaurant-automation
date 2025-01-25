@@ -49,7 +49,6 @@ model User {
   userPromotions UserPromotion[]
 
   // Relations
-  refreshTokens RefreshToken[]
   orders        Order[]        @relation("UserOrders")
   riderOrders   Order[]        @relation("RiderOrders")
 
@@ -138,6 +137,7 @@ model LoginHistory {
   location   String? // For storing geo-location
 }
 
+// not needed
 enum AdminRole {
   SUPER_ADMIN
   MANAGER
@@ -150,17 +150,6 @@ enum LoginStatus {
   BLOCKED
 }
 
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isValid   Boolean  @default(true)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@map("refresh_tokens")
-}
 
 model Branch {
   id                  String    @id @default(cuid())
@@ -201,6 +190,10 @@ model Branch {
   // default branch
   defaultForRestaurant Restaurant? @relation("DefaultBranch")
 
+  // branch variants
+  branchVariants BranchVariant[] 
+  branchAddons BranchAddon[]
+
   // business hours
   BusinessHours BusinessHours[]
 
@@ -215,6 +208,7 @@ model Branch {
   branchDeliverySettings BranchDeliverySettings[]
   checkouts              Checkout[]
   branchStaff            BranchStaff[]
+  branchOverrides BranchOverrides[]
 
   @@index([tenantId])
   @@index([restaurantId])
@@ -239,6 +233,7 @@ model BranchStaff {
   @@index([tenantId])
 }
 
+// not needed
 enum BranchStaffRole {
   SUPER_ADMIN
   ADMIN
@@ -248,22 +243,9 @@ enum BranchStaffRole {
   RIDER
 }
 
-
-
-model BranchFood {
-  id          String   @id @default(cuid())
-  branchId    String
-  foodId      String
-  isAvailable Boolean  @default(true)
-  customPrice Decimal? @db.Decimal(10, 2) // Override base price for this branch
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  food        Food     @relation(fields: [foodId], references: [id])
-
-  @@unique([branchId, foodId])
-}
-
 model BusinessHours {
   id          String  @id @default(cuid())
+  tenantId    String
   branchId    String
   branch      Branch  @relation(fields: [branchId], references: [id])
   dayOfWeek   String // 0-6 (Sunday-Saturday)
@@ -281,27 +263,40 @@ model BusinessHours {
   temporaryCloseEnd           DateTime?
   temporaryCloseReasonMessage String?
 
-  @@unique([branchId, dayOfWeek])
+  @@unique([branchId, dayOfWeek, tenantId])
+  @@index([branchId])
+  @@index([tenantId, branchId])
 }
 
 model BranchDeliverySettings {
   id                String  @id @default(cuid())
+  tenantId          String
   branchId          String  @unique
   branch            Branch  @relation(fields: [branchId], references: [id])
   baseDeliveryFee   Decimal @db.Decimal(10, 2)
   deliveryZones     Json? // Store custom delivery zones and fees
   distanceBasedFees Json? // Store distance based fees
   maxDeliveryRadius Decimal @db.Decimal(10, 2)
+
+  @@unique([branchId, tenantId])
+  @@index([branchId])
+  @@index([tenantId])
 }
 
+// not needed
 model Manager {
   id        String   @id @default(cuid())
   userId    String   @unique
+  tenantId  String
   branchId  String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+ @@unique([userId, branchId, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, branchId])  // Add this for tenant-specific branch queries
 }
 
 model Category {
@@ -313,9 +308,15 @@ model Category {
   parent      Category?  @relation("SubCategories", fields: [parentId], references: [id])
   children    Category[] @relation("SubCategories")
   foods       Food[]
+  branchFoods BranchFood[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  createdBy   String?
+  updatedBy   String?
   isActive    Boolean    @default(true)
+
+  // relation
+
 
   @@index([tenantId])
 }
@@ -326,59 +327,304 @@ model Food {
   name          String
   description   String?
   basePrice     Decimal        @db.Decimal(10, 2)
-  foodImages    FoodImage[]
+  version       Int           @default(1)  // Add version control
+  isShared      Boolean        @default(false)
+
+  // Core settings
+  isGlobal      Boolean        @default(false)
+  branchId        String?      // Branch-specific
+  targetBranchIds String[]  // list of branch ids for global food
+  allowCustomization Boolean   @default(true)
+  baseRecipe    Json?
+  status        FoodStatus     @default(DRAFT)
+  approvalStatus ApprovalStatus @default(PENDING)
+
+  // Visibility and marketing
+  isActive      Boolean        @default(true)
   isPopular     Boolean?       @default(false)
   isRecommended Boolean?       @default(false)
   isNewArrival  Boolean?       @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  isActive      Boolean        @default(true)
+  isFeatured    Boolean?       @default(false)
+  discountedPrice   Decimal?      @db.Decimal(10, 2)
+  haveDiscount      Boolean?      @default(false)
+  offer             String?
+  freeDelivery      Boolean?      @default(false)
+  specialDeliveryFee Boolean?      @default(false)
+  topSnacks         Boolean?      @default(false)
+  dynamicHome      Boolean?      @default(false)
+  trending         Boolean?      @default(false)
+  isFree            Boolean?      @default(false)
+  expiryDate       DateTime?
+  availableStartTime String?
+  availableEndTime String?
+  trendingStartTime String?
+  trendingEndTime String?
+  
+  // Pricing and offers
+  minOrderQuantity   Int          @default(1)
+
+  // Availability
+  availabilityConfig Json? // Structured JSON for all time-related configs
+  
+  // Relations
+  foodImages    FoodImage[]
   categories    Category[]
   variants      FoodVariant[]
-  // addonGroups   FoodAddonGroup[]
   foodAddons    FoodAddon[]
   branches      Branch[]       @relation("BranchFood")
+  branchFood    BranchFood[]
+  branchOverrides BranchOverrides[]
+  defaultImageUrl String?
+  
+  // Audit
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
   createdBy     User?          @relation("FoodCreator", fields: [createdById], references: [id])
   createdById   String?
   updatedBy     User?          @relation("FoodUpdater", fields: [updatedById], references: [id])
   updatedById   String?
+
+  // Other relations
   priceHistory  PriceHistory[]
   promotions    Promotion[]
   checkoutItems CheckoutItem[]
+  cartItems     CartItem[]
+  OrderItem     OrderItem[]
+  campaign      Campaign?      @relation(fields: [campaignId], references: [id])
+  campaignId    String?
 
-  cartItems CartItem[]
-  deletedAt DateTime? // Soft delete
-  OrderItem OrderItem[]
-
-  minOrderQuantity   Int?         @default(1)
-  freeDelivery       Boolean?     @default(false)
-  specialDeliveryFee Boolean?     @default(false)
-  haveDiscount       Boolean?     @default(false)
-  discountedPrice    Decimal?     @db.Decimal(10, 2)
-  offer              String?
-  topSnacks          Boolean?     @default(false)
-  dynamicHome        Boolean?     @default(false)
-  trending           Boolean?     @default(false)
-  isFree             Boolean?     @default(false)
-  isFeatured         Boolean?     @default(false)
-  expiryDate         DateTime?
-  availableStartTime String? // Store as 24h format
-  availableEndTime   String? // Store as 24h format
-  trendingStartTime  String? // Store as 24h format
-  trendingEndTime    String? // Store as 24h format
-  isDefaultImage     Boolean?     @default(false)
-  campaignId         String?
-  campaign           Campaign?    @relation(fields: [campaignId], references: [id])
-  branchFood         BranchFood[]
-
-  @@index([topSnacks])
-  @@index([trending])
-  @@index([dynamicHome])
-  @@index([isFeatured])
+  @@index([tenantId])
   @@index([isActive, isPopular])
   @@index([isActive, isRecommended])
   @@index([isActive, isNewArrival])
+  @@index([branchId])
+  @@index([isGlobal])
+}
+
+model BranchFood {
+ id          String   @id @default(cuid())
+  branchId    String
+  foodId      String
+  tenantId    String
+  version     Int      @default(1)
+
+  // Basic info
+  name        String
+  description String?
+  basePrice   Decimal  @db.Decimal(10, 2)
+  
+  // Core settings
+  allowCustomization Boolean   @default(true)
+  baseRecipe    Json?
+  status        FoodStatus     @default(DRAFT) // Default to PUBLISHED since it's copied from approved food
+
+  // Visibility and marketing
+  isActive      Boolean        @default(true)
+  isPopular     Boolean?       @default(false)
+  isRecommended Boolean?       @default(false)
+  isNewArrival  Boolean?       @default(false)
+  isFeatured    Boolean?       @default(false)
+  discountedPrice   Decimal?      @db.Decimal(10, 2)
+  haveDiscount      Boolean?      @default(false)
+  offer             String?
+  freeDelivery      Boolean?      @default(false)
+  specialDeliveryFee Boolean?      @default(false)
+  topSnacks         Boolean?      @default(false)
+  dynamicHome       Boolean?      @default(false)
+  trending          Boolean?      @default(false)
+  isFree            Boolean?      @default(false)
+  
+  // Time-related fields
+  expiryDate       DateTime?
+  availableStartTime String?
+  availableEndTime   String?
+  trendingStartTime  String?
+  trendingEndTime    String?
+  
+  // Pricing and offers
+  minOrderQuantity   Int          @default(1)
+
+  // Availability
+  availabilityConfig Json?
+  isAvailable     Boolean  @default(true)
+  stockStatus     StockStatus @default(IN_STOCK)
+  preparationTime Int?
+
+  // Images
+  defaultImageUrl String?
+  foodImages    BranchFoodImage[]
+
+  // Relations
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  food        Food     @relation(fields: [foodId], references: [id])
+  categories  Category[]
+  variants    BranchFoodVariant[]
+  addons      BranchFoodAddon[]
+
+  // Audit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  
+  @@unique([tenantId, branchId, foodId])
   @@index([tenantId])
+  @@index([branchId])
+  @@index([isActive, isPopular])
+  @@index([isActive, isRecommended])
+  @@index([isActive, isNewArrival])
+  @@index([isActive, isFeatured])
+}
+
+model BranchFoodImage {
+  id            String     @id @default(cuid())
+  branchFoodId  String
+  branchFood    BranchFood @relation(fields: [branchFoodId], references: [id])
+  url           String
+  deviceType    DeviceType
+  width         Int
+  height        Int
+  size          Int
+  createdAt     DateTime   @default(now())
+
+  @@unique([branchFoodId, deviceType])
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+model BranchFoodVariant {
+  id              String   @id @default(cuid())
+  tenantId        String
+  branchFoodId    String
+  name            String
+  description     String?
+  basePrice       Decimal  @db.Decimal(10, 2)
+  isRequired      Boolean  @default(false)
+  
+  // Visibility and stock
+  isActive        Boolean  @default(true)
+  isAvailable     Boolean  @default(true)
+  stockStatus     StockStatus @default(IN_STOCK)
+  
+  // Marketing
+  discountedPrice Decimal?  @db.Decimal(10, 2)
+  haveDiscount    Boolean?  @default(false)
+  
+  // Relations
+  branchFood      BranchFood @relation(fields: [branchFoodId], references: [id], onDelete: Cascade)
+  
+  // For tracking original variant
+  originalVariantId String?
+  
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  // Relations for orders/cart
+  OrderItem       OrderItem[]
+  CartItem        CartItem[]
+  checkoutItems   CheckoutItem[]
+
+  @@index([branchFoodId])
+  @@index([tenantId])
+}
+
+model BranchFoodAddon {
+  id              String   @id @default(cuid())
+  tenantId        String
+  branchFoodId    String
+
+  name            String
+  description     String?
+  price           Decimal  @db.Decimal(10, 2)
+  
+  // Addon specific settings
+  maxSelections   Int      @default(1)
+  isRequired      Boolean  @default(false)
+  displayOrder    Int      @default(0)
+  
+  // Visibility and stock
+  isActive        Boolean  @default(true)
+  isAvailable     Boolean  @default(true)
+  stockStatus     StockStatus @default(IN_STOCK)
+  
+  // Additional info
+  preparationTime Int?
+  allergens       String[]
+  nutritionInfo   Json?
+  imageUrl        String?
+
+  
+  
+  // Relations
+  addonId         String
+  branchAddonId    String
+  branchAddon    BranchAddon @relation(fields: [branchAddonId], references: [id])
+  addon           Addon @relation(fields: [addonId], references: [id])
+  branchFood      BranchFood @relation(fields: [branchFoodId], references: [id], onDelete: Cascade)
+  
+  // For tracking original addon
+  originalAddonId String?
+  
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  @@index([branchFoodId])
+  @@index([tenantId])
+}
+
+
+
+model BranchOverrides {
+  id String @id @default(cuid())
+  tenantId String
+  branchId String
+  foodId String
+  type FoodType
+  field String
+  value Json
+  variantId String?
+  addonId String?
+  globalVersion Int?
+  branchVersion Int?
+
+  // relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  food Food @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+
+
+ @@unique([tenantId, branchId, foodId, type, field]) // Ensures unique overrides per field
+  @@index([tenantId])
+  @@index([tenantId, branchId, foodId])
+  @@index([tenantId, branchId])
+  @@index([tenantId, foodId])
+  @@index([tenantId, type, field])
+}
+
+enum FoodType {
+  FOOD
+  ADDON
+  VARIANT
+}
+
+enum FoodStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model FoodImage {
@@ -399,11 +645,6 @@ enum DeviceType {
   MOBILE
   TABLET
   DESKTOP
-}
-
-enum FoodStatus {
-  DRAFT
-  PUBLISHED
 }
 
 // model BranchFood {
@@ -465,7 +706,7 @@ enum CampaignType {
   NEW_MENU_ITEM // Promoting a new dish or menu
   BOGO // "Buy One Get One" offers
   LOYALTY_REWARD // Targeted to loyal or repeat customers
-  HOLIDAY // e.g., Christmas, Valentine’s Day specials
+  HOLIDAY // e.g., Christmas, Valentine's Day specials
   FAMILY_PACKAGE // Special packages for families or groups
   DELIVERY_ONLY // Discounts for delivery orders only
   IN_STORE_ONLY // Discounts for dine-in customers
@@ -475,8 +716,11 @@ model FoodVariant {
   id            String         @id @default(cuid())
   tenantId      String
   name          String
+  description   String?
   basePrice     Decimal        @db.Decimal(10, 2)
   isRequired    Boolean        @default(false)
+ branchId   String?  // Null for global variants, set for branch-specific variants scope      VariantScope @default(GLOBAL) // GLOBAL or BRANCH
+
   foodId        String
   food          Food           @relation(fields: [foodId], references: [id])
   isActive      Boolean        @default(true)
@@ -487,14 +731,50 @@ model FoodVariant {
   CartItem      CartItem[]
   checkoutItems CheckoutItem[]
 
+  // branch variants
+  branchVariants BranchVariant[]
+
   @@index([tenantId])
+
 }
+
+enum VariantScope {
+  GLOBAL
+  BRANCH
+  BRANCH_SPECIFIC
+}
+
+
+model BranchVariant {
+  id              String   @id @default(cuid())
+  tenantId        String
+  branchId        String
+  variantId       String
+  overridePrice   Decimal?  @db.Decimal(10, 2) // Branch-specific price override
+  isAvailable     Boolean   @default(true)     // Availability at the branch level
+  customName      String?   // Optional branch-specific name (e.g., "Super Large")
+
+  // Relations
+  branch          Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  variant         FoodVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, branchId, variantId]) // Ensure unique overrides per branch-variant combination
+  @@index([tenantId, branchId])
+}
+
 
 model FoodAddon {
   id            String  @id @default(cuid())
   tenantId      String
   foodId        String
   addonId       String
+  branchId      String?
   maxSelections Int     @default(1) // Maximum times this addon can be selected
   isRequired    Boolean @default(false)
   displayOrder  Int     @default(0)
@@ -526,9 +806,14 @@ model Addon {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  scope           AddonScope   @default(GLOBAL) // Options: GLOBAL, BRANCH
+  branchId        String?  // Null for global addons, branch-specific otherwise
+
   // groupAddons     AddonToGroup[]
   foodAddons    FoodAddon[]
   checkoutItems CheckoutItemAddon[]
+  branchAddons BranchAddon[]
+  branchFoodAddons BranchFoodAddon[]
 
   createdBy      User             @relation("AddonCreator", fields: [createdById], references: [id])
   createdById    String
@@ -544,6 +829,40 @@ model Addon {
   @@index([tenantId])
 }
 
+enum AddonScope {
+  GLOBAL
+  BRANCH
+}
+
+model BranchAddon {
+  id              String   @id @default(cuid())
+  branchId        String
+  tenantId        String
+  addonId         String
+  price   Decimal? @db.Decimal(10, 2) // Custom price for this branch
+
+  isAvailable     Boolean  @default(true)     // Branch-specific availability
+  overrideNotes   String?  // Optional notes for overrides
+
+  // Relations
+  branch          Branch   @relation(fields: [branchId], references: [id])
+  addon           Addon    @relation(fields: [addonId], references: [id])
+   
+   branchFoodAddons BranchFoodAddon[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  priceHistory   PriceHistory[]
+  OrderItemAddon OrderItemAddon[]
+  CartItemAddon  CartItemAddon[]
+
+  @@unique([branchId, addonId])
+  @@index([tenantId])
+}
+
+
+
 enum AddonCategory {
   TOPPING
   SAUCE
@@ -551,71 +870,6 @@ enum AddonCategory {
   DRINK
   EXTRA
 }
-
-// model FoodAddon {
-//   id              String  @id @default(cuid())
-//   foodId          String
-//   addonId         String
-//   isRequired      Boolean @default(false)
-//   maxQuantity     Int     @default(1)
-//   minQuantity     Int     @default(1)
-//   defaultQuantity Int     @default(1)
-//   displayOrder    Int     @default(0)
-//   food            Food?    @relation(fields: [foodId], references: [id])
-//   addon           Addon   @relation(fields: [addonId], references: [id])
-
-//   createdAt    DateTime    @default(now())
-//   updatedAt    DateTime    @updatedAt
-//   AddonGroup   AddonGroup? @relation(fields: [addonGroupId], references: [id])
-//   addonGroupId String?
-
-//   @@unique([foodId, addonId])
-// }
-
-// new junction table 
-// model FoodAddonGroup {
-//   id          String  @id @default(cuid())
-//   foodId      String
-//   food        Food    @relation(fields: [foodId], references: [id])
-//   isRequired   Boolean @default(false)
-//   maxSelectionsAllowed Int @default(1)
-//   addonGroupId String
-//   addonGroup  AddonGroup @relation(fields: [addonGroupId], references: [id])
-// }
-
-// model AddonGroup {
-//   id                   String      @id @default(cuid())
-//   name                 String
-//   isRequired           Boolean     @default(false)
-//   maxSelectionsAllowed Int         @default(1)
-//   description          String?
-
-//   foods                FoodAddonGroup[]
-//   addons          AddonToGroup[]
-
-//   createdBy            User        @relation("AddonGroupCreator", fields: [createdById], references: [id])
-//   createdById          String
-//   updatedBy            User        @relation("AddonGroupUpdater", fields: [updatedById], references: [id])
-//   updatedById          String
-// }
-
-// Junction table with additional configuration
-// model AddonToGroup {
-//   id          String     @id @default(cuid())
-//   addon       Addon      @relation(fields: [addonId], references: [id])
-//   addonId     String
-//   group       AddonGroup @relation(fields: [groupId], references: [id])
-//   groupId     String
-
-//   // Additional configuration for each addon in this group
-//   maxQuantity    Int     @default(1)    // Maximum quantity allowed
-//   minQuantity    Int     @default(0)    // Minimum quantity required
-//   isRequired     Boolean @default(false) // Is this addon required in this group?
-//   extraPrice     Decimal @default(0)     // Special price for this addon in this group
-//   displayOrder   Int     @default(0)     // Order in which to display this addon
-
-//   @@unique([addonId, groupId])
-// }
 
 model PriceHistory {
   id          String       @id @default(cuid())
@@ -628,6 +882,10 @@ model PriceHistory {
   food        Food?        @relation(fields: [foodId], references: [id])
   variant     FoodVariant? @relation(fields: [variantId], references: [id])
   addon       Addon?       @relation(fields: [addonId], references: [id])
+
+  branchAddonId String?
+  branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
+
   changedById String
 }
 
@@ -693,12 +951,18 @@ enum OrderType {
 
 model OrderItem {
   id        String           @id @default(cuid())
+
+
   orderId   String
   order     Order            @relation(fields: [orderId], references: [id])
   foodId    String
   food      Food             @relation(fields: [foodId], references: [id])
   variantId String?
   variant   FoodVariant?     @relation(fields: [variantId], references: [id])
+  branchFoodVariantId String?
+  branchFoodVariant BranchFoodVariant? @relation(fields: [branchFoodVariantId], references: [id])
+
+  
   quantity  Int
   unitPrice Decimal          @db.Decimal(10, 2)
   addons    OrderItemAddon[]
@@ -709,10 +973,13 @@ model OrderItemAddon {
   id          String    @id @default(cuid())
   orderItemId String
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
-  addonId     String
-  addon       Addon     @relation(fields: [addonId], references: [id])
   quantity    Int
   unitPrice   Decimal   @db.Decimal(10, 2)
+
+  addonId     String
+  addon       Addon     @relation(fields: [addonId], references: [id])
+  branchAddonId String?
+  branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
 }
 
 model Address {
@@ -740,11 +1007,12 @@ model Address {
 model Restaurant {
   id          String  @id @default(cuid())
   name        String // "Burger Palace"
-  domain      String  @unique // "burgerpalace.foodapp.com"
   tenantId    String  @unique // "burgerpalace"
   logo        String? // "https://storage.com/logos/burger-palace.png"
   description String? // "Best burgers in town since 1995"
 
+  domain      String  @unique // "burgerpalace.foodapp.com"
+  customDomain Domain[]
   // Primary Admin (Owner)
   adminId String @unique
   admin   User   @relation("RestaurantAdmin", fields: [adminId], references: [id])
@@ -779,6 +1047,48 @@ model Restaurant {
   updatedAt    DateTime            @updatedAt
 
   @@index([tenantId])
+}
+
+
+model Domain {
+  id           String     @id @default(cuid())
+  domain       String     @unique // "burgerpalace.com"
+  isCustom     Boolean    @default(false)
+  isVerified   Boolean    @default(false)
+  isPrimary    Boolean    @default(false)
+  status       DomainStatus @default(PENDING)
+  
+  // DNS verification
+  dnsRecord    String?    // TXT record for verification
+  verifiedAt   DateTime?
+  
+  // SSL certificate status
+  sslStatus    SSLStatus? @default(PENDING)
+  sslExpiresAt DateTime?
+  
+  // Relations
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([domain])
+  @@index([restaurantId])
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  EXPIRED
+}
+
+enum SSLStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  EXPIRED
 }
 
 model RestaurantStaff {
@@ -926,6 +1236,7 @@ model SubscriptionPlan {
 // Points System
 model PointsSystem {
   id           String     @id @default(cuid())
+  tenantId     String     @unique
   restaurantId String     @unique
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
@@ -1050,9 +1361,14 @@ model CheckoutItem {
   foodId     String
   food       Food                @relation(fields: [foodId], references: [id])
   quantity   Int
+  // variant
+  branchFoodVariantId String?
+  branchFoodVariant BranchFoodVariant? @relation(fields: [branchFoodVariantId], references: [id])
   variantId  String?
   variant    FoodVariant?        @relation(fields: [variantId], references: [id])
   unitPrice  Decimal             @db.Decimal(10, 2)
+
+  // addons
   addons     CheckoutItemAddon[]
   addonTotal Decimal             @db.Decimal(10, 2)
   subtotal   Decimal             @db.Decimal(10, 2)
@@ -1130,15 +1446,21 @@ model CartItem {
   variant   FoodVariant?    @relation(fields: [variantId], references: [id])
   quantity  Int
   addons    CartItemAddon[]
+  branchFoodVariantId String?
+  branchFoodVariant BranchFoodVariant? @relation(fields: [branchFoodVariantId], references: [id])
 }
 
 model CartItemAddon {
   id         String   @id @default(cuid())
   cartItemId String
   cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  quantity   Int
+  
   addonId    String
   addon      Addon    @relation(fields: [addonId], references: [id])
-  quantity   Int
+  
+  branchAddonId String?
+  branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
 }
 
 model Payment {

@@ -8,35 +8,29 @@ import { AddonService } from "../services/addon.service";
 import { AddOnValidationService } from "../validation/addon-validation.service";
 
 export class AddonController {
-  constructor(
-    private readonly addonService: AddonService,
-    private readonly addonImageService: AddOnImageService,
-    private readonly addonValidationService: AddOnValidationService
-  ) {
-    this.addonService = addonService;
-    this.addonImageService = addonImageService;
-    this.addonValidationService = addonValidationService;
+  private readonly addonService: AddonService;
+  private readonly addonImageService: AddOnImageService;
+  private readonly addonValidationService: AddOnValidationService;
+  constructor() {
+    this.addonService = new AddonService();
+    this.addonImageService = new AddOnImageService();
+    this.addonValidationService = new AddOnValidationService();
   }
 
   createAddon = catchAsync(async (req: Request, res: Response) => {
-    const { file } = req;
-    if (!file) throw new ApiError(400, "Image is required");
-    const images = await this.addonImageService.uploadFoodImage(file);
-    const { body } = req;
-    let data;
-    try {
-      data = JSON.parse(body.data);
-    } catch (error) {
-      throw new ApiError(400, "Invalid addon data format");
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
+
+    const { body } = req;
     const { userId } = req.user as { userId: string };
-    data.imageUrl = images?.imageUrl;
-    data.imageSize = images?.imageSize;
-    data.createdById = userId;
-    data.updatedById = userId;
+    body.createdById = userId;
+    body.updatedById = userId;
+    body.tenantId = tenantId;
 
 
-    const result = await this.addonService.createAddOn({ ...data, images });
+    const result = await this.addonService.createAddOn(body);
 
     sendResponse(res, {
       statusCode: httpStatus.CREATED,
@@ -48,10 +42,14 @@ export class AddonController {
 
   createBulkFoodAddons = catchAsync(async (req: Request, res: Response) => {
     const data = req.body;
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
     const {foodId} = req.params;
     console.log(data.addons, "data.addons");
     await this.addonValidationService.validateBulkAddonIds(data.addons);
-    const object = {addons:data.addons, foodId};
+    const object = {addons:data.addons, foodId, tenantId};
     console.log(object, "object");
     const result = await this.addonService.createBulkFoodAddons(object);
     sendResponse(res, {
@@ -63,7 +61,11 @@ export class AddonController {
   });
 
   getAddOns = catchAsync(async (req: Request, res: Response) => {
-    const result = await this.addonService.getAddOns();
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+      const result = await this.addonService.getAddOns(tenantId);
     console.log("result from controller");
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -75,7 +77,11 @@ export class AddonController {
 
   getAddOnById = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await this.addonService.getAddOnById(id);
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.getAddOnById(id, tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -85,41 +91,25 @@ export class AddonController {
   });
 
   updateAddOn = catchAsync(async (req: Request, res: Response) => {
-    const { file } = req;
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
     const { id } = req.params;
     const { userId } = req.user as { userId: string };
+    const { body } = req;
 
     
     // Initialize update data
     let updateData: any = {
       id,
-      updatedById: userId
+      updatedById: userId,
+      ...body
     };
 
-    // If there's form data, parse it
-    if (req.body.data) {
-      try {
-        const parsedData = JSON.parse(req.body.data);
-        updateData = { ...updateData, ...parsedData };
-        await this.addonValidationService.validateUpdateAddonInput(updateData);
-      } catch (error) {
-        throw new ApiError(400, "Invalid data format");
-      }
-    }
 
-    // If there's a file, process it
-    if (file) {
-      const images = await this.addonImageService.uploadFoodImage(file);
-      updateData.imageUrl = images?.imageUrl;
-      updateData.imageSize = images?.imageSize;
-    }
 
-    // If neither data nor file is provided, throw error
-    if (!file && !req.body.data) {
-      throw new ApiError(400, "No updates provided");
-    }
-
-    const result = await this.addonService.updateAddOn(updateData);
+    const result = await this.addonService.updateAddOn(updateData,tenantId);
     
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -132,8 +122,12 @@ export class AddonController {
   updateFoodAddon = catchAsync(async (req: Request, res: Response) => {
     const data = req.body;
     const {foodId,addonId} = req.params;
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
     console.log(data, "data", foodId, addonId);
-    const result = await this.addonService.updateFoodAddon({...data,foodId,addonId});
+    const result = await this.addonService.updateFoodAddon({...data,foodId,addonId},tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -145,9 +139,13 @@ export class AddonController {
 
 
   deleteFoodAddon = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
     const { foodId, addonId } = req.params;
     if(!foodId || !addonId) throw new ApiError(400, "Food id and addon id is required");
-    const result = await this.addonService.deleteFoodAddon(foodId, addonId);
+    const result = await this.addonService.deleteFoodAddon(foodId, addonId,tenantId);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -158,7 +156,11 @@ export class AddonController {
   });
 
   getAllFoodAddons = catchAsync(async (req: Request, res: Response) => {
-    const result = await this.addonService.getAllFoodAddons();
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.getAllFoodAddons(tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -167,8 +169,26 @@ export class AddonController {
     });
   });
 
+  getActiveFoodAddons = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.getActiveFoodAddons(tenantId);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Active food addons fetched successfully",
+      data: result
+    });
+  });
+
   getActiveAddOns = catchAsync(async (req: Request, res: Response) => {
-    const result = await this.addonService.getActiveAddOns();
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.getActiveAddOns(tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -180,7 +200,11 @@ export class AddonController {
   // get food addons
   getFoodAddonsByFoodId = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
-    const result = await this.addonService.getFoodAddons(foodId);
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.getFoodAddons(foodId,tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -192,7 +216,11 @@ export class AddonController {
   // toggle addon
   toggleAddOn = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await this.addonService.toggleAddOnActiveStatus(id);
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.toggleAddOnActiveStatus(id,tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -204,7 +232,11 @@ export class AddonController {
   // toggle food addon
   toggleFoodAddOn = catchAsync(async (req: Request, res: Response) => {
     const { foodId, addonId } = req.params;
-    const result = await this.addonService.toogleFoodAddonActiveStatus(foodId, addonId);
+    const tenantId = req.tenantContext?.tenantId;
+    if(!tenantId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
+    }
+    const result = await this.addonService.toogleFoodAddonActiveStatus(foodId, addonId,tenantId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,

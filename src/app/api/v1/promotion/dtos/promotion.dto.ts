@@ -1,4 +1,5 @@
 export interface CreatePromotionDto {
+  tenantId: string;
   promoCode: string;
   type: "PERCENTAGE" | "FIXED";
   value: number;

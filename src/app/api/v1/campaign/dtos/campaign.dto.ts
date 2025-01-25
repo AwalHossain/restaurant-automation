@@ -54,6 +54,7 @@ export type ConditionsDto = {
 
 export type CampaignDto = {
     name: string;
+    tenantId: string;
     description?: string;
     startDate: Date;
     endDate: Date;

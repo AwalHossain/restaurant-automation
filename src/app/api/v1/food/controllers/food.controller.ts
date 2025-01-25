@@ -45,8 +45,16 @@ export class FoodController {
   // add variants
   addVariants = catchAsync(async (req: Request, res: Response) => {
     const { variants, foodId } = req.body;
+    const userId = req.user?.userId;
+    const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
+    const restaurantId = req.tenantContext?.restaurantId;
 
-    const result = await this.foodService.addFoodVariants(foodId, variants);
+    if(!tenantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID is required");
+    }
+
+    const result = await this.foodService.addFoodVariants(foodId as string, tenantId as string, variants );
     return res.status(201).json({
       success: true,
       message: "Variants added successfully",
@@ -172,4 +180,23 @@ export class FoodController {
       data: result
     });
   });
+
+
+  approveFood = catchAsync(async (req: Request, res: Response) => {
+    const { foodId } = req.body;
+    const userId = req.user?.userId;
+    const tenantId = req.tenantContext?.tenantId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if(!tenantId || !restaurantId){
+      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
+    }
+    // const result = await this.foodService.approveFoodTemplate(foodId as string, tenantId, userId as string);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Food approved successfully",
+      data: "result"
+    });
+  });
+
 }

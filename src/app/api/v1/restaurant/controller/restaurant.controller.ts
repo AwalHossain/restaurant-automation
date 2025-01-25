@@ -20,6 +20,9 @@ export class RestaurantController {
         const { body } = req;
         const userId = req.user?.userId;
         body.userId = userId;
+
+        body.adminId = userId;
+        console.log(body, "body");
         await this.restaurantValidation.validateCreateRestaurantInput(body as CreateRestaurantInput);
         
         const result = await this.restaurantService.createRestaurant(body as CreateRestaurantInput, req);
@@ -44,8 +47,42 @@ export class RestaurantController {
 
     getRestaurantByDomain = catchAsync(async (req: Request, res: Response) => {
         const { domain } = req.params;
-
+        const tenantId = req.tenantContext?.tenantId;
         const result = await this.restaurantService.getRestaurantByDomain(domain as string);
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: "Restaurant fetched successfully",
+            data: result
+        });
+    })
+
+    getRestaurantByTenantId = catchAsync(async (req: Request, res: Response) => {
+        const tenantId = req.tenantContext?.tenantId;
+        const result = await this.restaurantService.getRestaurantByTenantId(tenantId as string);
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: "Restaurant fetched successfully",
+            data: result
+        });
+    })
+
+    getAllBranches = catchAsync(async (req: Request, res: Response) => {
+        const restaurantId = req.tenantContext?.restaurantId;
+        const tenantId = req.tenantContext?.tenantId;
+        const result = await this.restaurantService.getAllBranches(restaurantId as string, tenantId as string);
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: "Branches fetched successfully",
+            data: result
+        });
+    })
+
+    getRestaurantByAdminId = catchAsync(async (req: Request, res: Response) => {
+        const adminId = req.user?.userId;
+        const result = await this.restaurantService.getRestaurantByAdminId(adminId as string);
         sendResponse(res, {
             statusCode: 200,
             success: true,
@@ -57,8 +94,10 @@ export class RestaurantController {
     // update restaurant settings
     updateRestaurantSettings = catchAsync(async (req: Request, res: Response) => {
         const { body } = req;
-        const { restaurantId } = req.params;
+        const tenantId = req.tenantContext?.tenantId;
+        const restaurantId = req.tenantContext?.restaurantId;
         body.restaurantId = restaurantId;
+        body.tenantId = tenantId;
         const result = await this.restaurantService.updateRestaurantSettings(body);
         sendResponse(res, {
             statusCode: 200,
@@ -71,8 +110,10 @@ export class RestaurantController {
     // update points system
     updatePointsSystem = catchAsync(async (req: Request, res: Response) => {
         const { body } = req;
-        const { restaurantId } = req.params;
+        const tenantId = req.tenantContext?.tenantId;
+        const restaurantId = req.tenantContext?.restaurantId;
         body.restaurantId = restaurantId;
+        body.tenantId = tenantId;
         const result = await this.restaurantService.updateRestaurantPointsSystem(body);
         sendResponse(res, {
             statusCode: 200,

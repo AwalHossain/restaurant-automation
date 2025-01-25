@@ -54,8 +54,10 @@ import { Request } from "express";
 //   }
 export type CreateRestaurantInput = {
     name: string;
+    adminId: string;
     userId: string;
-        domain: string;
+    tenantId: string;
+    domain: string;
         restaurantType: RestaurantType;
         address: string;
         latitude: string;
@@ -177,8 +179,8 @@ export type RestaurantType = "FAST_FOOD" | "FINE_DINING" | "CAFE";
 //   "restaurantId": "restaurant123"
 
 export type CreateBranchInput = {
-
     name: string;
+    tenantId: string;
     description?: string;
     address: string;
     phoneNumber: string;

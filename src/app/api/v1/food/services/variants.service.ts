@@ -9,7 +9,7 @@ export class VariantService {
     this.validationService = validationService;
   }
 
-  async createBulkVariants(foodId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
+  async createBulkVariants(foodId: string, tenantId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
     // validate all variants first
     const variantsWithFoodId = variants.map(variant => ({
       ...variant,
@@ -25,6 +25,7 @@ export class VariantService {
         variants.map(variant =>
           tx.foodVariant.create({
             data: {
+              tenantId: tenantId,
               name: variant.name,
               basePrice: variant.basePrice,
               isActive: variant.isActive ?? true,
@@ -106,7 +107,7 @@ export class VariantService {
 
   //   add a new variant
 
-  async addNewVariant(foodId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
+  async addNewVariant(foodId: string, tenantId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
     // validate food exist
     const food = await prisma.food.findUnique({
       where: {
@@ -134,6 +135,7 @@ export class VariantService {
         variants.map(variant =>
           tx.foodVariant.create({
             data: {
+              tenantId: tenantId,
               name: variant.name,
               basePrice: variant.basePrice,
               isActive: variant.isActive ?? true,

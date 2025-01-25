@@ -33,17 +33,13 @@ export const branchAuth = (allowedRoles: Role[]) => {
                 let verifiedUser = null;
           
                 verifiedUser = jwtHelpers.verifyToken(token, env.JWT_SECRET as Secret);
-                console.log(verifiedUser, 'verifiedUser');
                 req.user = verifiedUser as JwtPayload; // role  , userid
-                console.log(req.user, 'req.user', verifiedUser); 
-            console.log(req.params,'req.params');
-                const branchId = req.body.branchId || req.params.branchId;
+                const branchId = req.body.branchId || req.params.branchId || req.headers['branch-id'];
                 const userId = req.user?.userId;
-                console.log(branchId,'branchId');
-                console.log(userId,'userId');
                 if(!branchId || !userId) {
                     throw new ApiError(httpStatus.UNAUTHORIZED, 'Branch ID and User ID are required');
                 }
+
 
                 // get user with all their branch roles
                 const user = await prisma.user.findUnique({
@@ -61,25 +57,28 @@ export const branchAuth = (allowedRoles: Role[]) => {
                     }
                 })
 
+                console.log(user, 'user fetched', branchId, 'branchId');
+
                 if(!user) {
                     throw new ApiError(httpStatus.UNAUTHORIZED, 'User not found');
                 }
 
+                console.log(allowedRoles.includes(verifiedUser.role), 'allowedRoles.includes(verifiedUser.role)', verifiedUser.role, "allowedRoles", user?.role);
+
+
                 // Super admin can access all branches
-                if(user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN) {
+                if(user.role === Role.SUPER_ADMIN && allowedRoles.includes(verifiedUser.role)) {
                     return next();
                 }   
 
                 console.log(user.branchStaff[0],'user.branchStaff[0]', user.branchStaff, 'user.branchStaff');
 
                 // check if the user has the required role for the branch
-                const branchStaff = user.branchStaff[0];
-                if(!branchStaff || !allowedRoles.includes(branchStaff.role)) {
-                    throw new ApiError(httpStatus.UNAUTHORIZED, 'You are not authorized to access this branch');
-                }
+                // const branchStaff = user.branchStaff[0];
+                // if(!branchStaff || !allowedRoles.includes(verifiedUser.role)) {
+                //     throw new ApiError(httpStatus.UNAUTHORIZED, 'You are not authorized to access this branch');
+                // }
 
-                // add branch role to request for use in controllers
-                req.branchRole = branchStaff.role;
                 next();
         }catch(error){
             next(error);

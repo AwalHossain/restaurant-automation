@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import ApiError from "../../../../../errors/ApiError";
 import catchAsync from "../../../../../shared/catchAsync";
 import sendResponse from "../../../../../shared/sendResponse";
 import { VariantService } from "../services/variants.service";
@@ -12,8 +13,13 @@ export class VariantController {
   bulkUpdateVariants = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
     const { variants } = req.body;
-    console.log(variants, "variants");
-    const result = await this.variantService.createBulkVariants(foodId, variants);
+    const tenantId = req.tenantContext?.tenantId;
+    const userId = req.user?.userId;
+    console.log(tenantId, userId, "tenantId, userId");
+    if(!tenantId || !userId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant or user not found");
+    }
+    const result = await this.variantService.createBulkVariants(foodId, tenantId, variants);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -52,7 +58,12 @@ export class VariantController {
   createVariant = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
     const payload = req.body;
-    const result = await this.variantService.addNewVariant(foodId, payload);
+    const tenantId = req.tenantContext?.tenantId;
+    const userId = req.user?.id;
+    if(!tenantId || !userId){
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant or user not found");
+    }
+    const result = await this.variantService.addNewVariant(foodId, tenantId, payload);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

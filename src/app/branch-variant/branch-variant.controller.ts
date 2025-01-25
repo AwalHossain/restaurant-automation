@@ -14,12 +14,13 @@ export class BranchVariantController {
     const { foodId } = req.params;
     const { variants } = req.body;
     const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
     const userId = req.user?.userId;
-    console.log(tenantId, userId, "tenantId, userId");
-    if(!tenantId || !userId){
+    console.log(tenantId, branchId, userId, "tenantId, branchId, userId");
+    if(!tenantId || !branchId || !userId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant or user not found");
     }
-    const result = await this.branchVariantService.createBulkVariants(foodId, tenantId, variants);
+    const result = await this.branchVariantService.createBulkBranchVariants(foodId, tenantId, branchId, variants);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -31,7 +32,7 @@ export class BranchVariantController {
 
   getVariantsByFoodId = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
-    const result = await this.branchVariantService.getVariantsByFoodId(foodId);
+    const result = await this.branchVariantService.getBranchVariantsByFoodId(foodId);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -44,7 +45,10 @@ export class BranchVariantController {
   updateVariant = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
     const { variants } = req.body;
-    const result = await this.branchVariantService.updateVariant(foodId, variants);
+    const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
+    const userId = req.user?.userId;
+    const result = await this.branchVariantService.updateBranchVariant(foodId, tenantId as string, branchId as string, variants);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -55,15 +59,19 @@ export class BranchVariantController {
   });
 
   //   add a new variant
-  createVariant = catchAsync(async (req: Request, res: Response) => {
-    const { foodId } = req.params;
-    const payload = req.body;
+  createBranchVariant = catchAsync(async (req: Request, res: Response) => {
+    const foodId = req.body.foodId;
+    const payload = req.body.variants;
     const tenantId = req.tenantContext?.tenantId;
-    const userId = req.user?.id;
+    const branchId = req.tenantContext?.branchId;
+    const userId = req.user?.userId;
+
+    console.log(tenantId, branchId, userId, "tenantId, branchId, userId");
+    
     if(!tenantId || !userId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant or user not found");
     }
-    const result = await this.branchVariantService.addNewVariant(foodId, tenantId, payload);
+    const result = await this.branchVariantService.addNewBranchVariant(foodId, tenantId, branchId as string, payload);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

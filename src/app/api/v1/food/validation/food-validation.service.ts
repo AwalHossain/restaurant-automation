@@ -9,6 +9,15 @@ export class FoodValidationService {
 
   private readonly createFoodSchema = z.object({
     name: z.string().min(2, "Food name must be at least 2 characters"),
+    tetantId: z.string({required_error: "Tenant id is required"}),
+    targetBranchIds: z.array(z.string()).optional(),
+    allowCustomization: z.boolean().optional(),
+    baseRecipe: z.string().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+    approvalStatus: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
+
+    isGlobal: z.boolean().optional(),
+
     description: z.string().optional(),
     basePrice: z.number().min(0, "Base price must be greater than 0"),
     minOrderQuantity: z.number().min(1, "Minimum order quantity must be at least 1"),
@@ -63,6 +72,16 @@ export class FoodValidationService {
 
   async validateCreateFoodInput(input: CreateFoodInput) {
     // basic validation
+    console.log(input, "input");
+    
+      // Validate branch assignments
+  if (!input.isGlobal && (!input.targetBranchIds || input.targetBranchIds.length === 0)) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST, 
+      "At least one branch must be selected when food is not global"
+    );
+  }
+
     if (input.basePrice <= 0) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Base price must be greater than 0");
     }

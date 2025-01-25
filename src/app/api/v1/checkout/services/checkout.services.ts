@@ -60,6 +60,7 @@ export class CheckoutService {
     const checkout = await tx.checkout.create({
       data: {
         userId,
+        tenantId:input.tenantId,
         branchId: input.branchId,
         orderType: input.orderType,
         paymentMethod: input.paymentMethod!,

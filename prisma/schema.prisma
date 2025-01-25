@@ -57,6 +57,8 @@ model User {
   deletedAddons Addon[]       @relation("AddonDeleter")
   deletedBranch Branch[]      @relation("BranchDeleter")
   branchStaff   BranchStaff[]
+  createdBranchFoods BranchFood[] @relation("FoodCreator")
+  updatedBranchFoods BranchFood[] @relation("FoodUpdater")
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -78,6 +80,7 @@ model User {
   Feedback      Feedback[]
   userPoints    UserPoints[]
   checkouts     Checkout[]
+
 
   updatedRestaurantSettings RestaurantSettings[] @relation("RestaurantSettingsUpdater")
 
@@ -186,13 +189,12 @@ model Branch {
   restaurantId String?
   Restaurant   Restaurant? @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
   User         User[]
+  branchAddons BranchAddon[]
 
   // default branch
   defaultForRestaurant Restaurant? @relation("DefaultBranch")
 
-  // branch variants
-  branchVariants BranchVariant[] 
-  branchAddons BranchAddon[]
+
 
   // business hours
   BusinessHours BusinessHours[]
@@ -405,7 +407,6 @@ model Food {
 model BranchFood {
  id          String   @id @default(cuid())
   branchId    String
-  foodId      String
   tenantId    String
   version     Int      @default(1)
 
@@ -457,17 +458,25 @@ model BranchFood {
 
   // Relations
   branch      Branch   @relation(fields: [branchId], references: [id])
-  food        Food     @relation(fields: [foodId], references: [id])
+  foodId      String?
+  food        Food?     @relation(fields: [foodId], references: [id])
   categories  Category[]
   variants    BranchFoodVariant[]
-  addons      BranchFoodAddon[]
+  branchAddons      BranchFoodAddon[]
+
+  priceHistory  PriceHistory[]
 
   // Audit
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  updatedBy   String?
+  
+  createdBy     User?          @relation("FoodCreator", fields: [createdById], references: [id])
+  createdById   String?
+  updatedBy     User?          @relation("FoodUpdater", fields: [updatedById], references: [id])
+  updatedById   String?
   
   @@unique([tenantId, branchId, foodId])
+  @@unique([tenantId, branchId, id])
   @@index([tenantId])
   @@index([branchId])
   @@index([isActive, isPopular])
@@ -499,6 +508,7 @@ enum StockStatus {
 model BranchFoodVariant {
   id              String   @id @default(cuid())
   tenantId        String
+  branchId        String
   branchFoodId    String
   name            String
   description     String?
@@ -517,6 +527,7 @@ model BranchFoodVariant {
   // Relations
   branchFood      BranchFood @relation(fields: [branchFoodId], references: [id], onDelete: Cascade)
   
+  priceHistory  PriceHistory[]
   // For tracking original variant
   originalVariantId String?
   
@@ -532,6 +543,8 @@ model BranchFoodVariant {
 
   @@index([branchFoodId])
   @@index([tenantId])
+  @@index([branchId])
+  @@index([tenantId, branchId, branchFoodId])
 }
 
 model BranchFoodAddon {
@@ -539,10 +552,7 @@ model BranchFoodAddon {
   tenantId        String
   branchFoodId    String
 
-  name            String
-  description     String?
-  price           Decimal  @db.Decimal(10, 2)
-  
+
   // Addon specific settings
   maxSelections   Int      @default(1)
   isRequired      Boolean  @default(false)
@@ -551,21 +561,12 @@ model BranchFoodAddon {
   // Visibility and stock
   isActive        Boolean  @default(true)
   isAvailable     Boolean  @default(true)
-  stockStatus     StockStatus @default(IN_STOCK)
-  
-  // Additional info
-  preparationTime Int?
-  allergens       String[]
-  nutritionInfo   Json?
-  imageUrl        String?
-
-  
   
   // Relations
-  addonId         String
-  branchAddonId    String
-  branchAddon    BranchAddon @relation(fields: [branchAddonId], references: [id])
-  addon           Addon @relation(fields: [addonId], references: [id])
+  addonId         String?
+  branchAddonId   String?
+  addon           Addon? @relation(fields: [addonId], references: [id])
+  branchAddon     BranchAddon? @relation(fields: [branchAddonId], references: [id])
   branchFood      BranchFood @relation(fields: [branchFoodId], references: [id], onDelete: Cascade)
   
   // For tracking original addon
@@ -576,8 +577,11 @@ model BranchFoodAddon {
   updatedAt       DateTime @updatedAt
   updatedBy       String?
 
-  @@index([branchFoodId])
-  @@index([tenantId])
+// ... existing code ...
+
+@@unique([tenantId, branchFoodId, addonId])
+@@index([tenantId])
+@@index([tenantId, branchFoodId])
 }
 
 
@@ -731,8 +735,6 @@ model FoodVariant {
   CartItem      CartItem[]
   checkoutItems CheckoutItem[]
 
-  // branch variants
-  branchVariants BranchVariant[]
 
   @@index([tenantId])
 
@@ -745,28 +747,42 @@ enum VariantScope {
 }
 
 
-model BranchVariant {
-  id              String   @id @default(cuid())
-  tenantId        String
-  branchId        String
-  variantId       String
-  overridePrice   Decimal?  @db.Decimal(10, 2) // Branch-specific price override
-  isAvailable     Boolean   @default(true)     // Availability at the branch level
-  customName      String?   // Optional branch-specific name (e.g., "Super Large")
+// model BranchVariant {
+//   id              String   @id @default(cuid())
+//   tenantId        String
+//   branchId        String
+//   variantId       String
 
-  // Relations
-  branch          Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  variant         FoodVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+//   name          String
+//   description   String?
+//   basePrice     Decimal        @db.Decimal(10, 2)
+//   isRequired    Boolean        @default(false)
 
-  parentId String?
-  createdBy String?
-  createdAt DateTime @default(now())
-  updatedBy String?
-  updatedAt DateTime @updatedAt
+//   foodId        String?
+//   food          Food           @relation(fields: [foodId], references: [id])
+//   isActive      Boolean        @default(true)
+//   updatedAt     DateTime       @updatedAt
+//   priceHistory  PriceHistory[]
+//   OrderItem     OrderItem[]
+//   CartItem      CartItem[]
+//   checkoutItems CheckoutItem[]
 
-  @@unique([tenantId, branchId, variantId]) // Ensure unique overrides per branch-variant combination
-  @@index([tenantId, branchId])
-}
+//   // branch variants
+//   branchVariants BranchVariant[]
+
+
+//   // Relations
+//   branch          Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+//   variant         FoodVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+//   parentId String?
+//   createdBy String?
+//   createdAt DateTime @default(now())
+//   updatedBy String?
+
+//   @@unique([tenantId, branchId, variantId]) // Ensure unique overrides per branch-variant combination
+//   @@index([tenantId, branchId])
+// }
 
 
 model FoodAddon {
@@ -812,7 +828,6 @@ model Addon {
   // groupAddons     AddonToGroup[]
   foodAddons    FoodAddon[]
   checkoutItems CheckoutItemAddon[]
-  branchAddons BranchAddon[]
   branchFoodAddons BranchFoodAddon[]
 
   createdBy      User             @relation("AddonCreator", fields: [createdById], references: [id])
@@ -825,8 +840,11 @@ model Addon {
   priceHistory   PriceHistory[]
   OrderItemAddon OrderItemAddon[]
   CartItemAddon  CartItemAddon[]
+  branchAddons BranchAddon[]
 
   @@index([tenantId])
+  @@index([branchId])
+  @@unique([tenantId, branchId])
 }
 
 enum AddonScope {
@@ -838,17 +856,27 @@ model BranchAddon {
   id              String   @id @default(cuid())
   branchId        String
   tenantId        String
-  addonId         String
-  price   Decimal? @db.Decimal(10, 2) // Custom price for this branch
 
+  name            String
+  price           Decimal        @db.Decimal(10, 2)
+  description     String?
+  isActive        Boolean        @default(true)
+  imageUrl        String?
+  imageSize       Int?
+  preparationTime Int?
+  allergens       String[]
+  nutritionInfo   Json?
+  category        AddonCategory?
+
+  addonId         String?
   isAvailable     Boolean  @default(true)     // Branch-specific availability
   overrideNotes   String?  // Optional notes for overrides
 
   // Relations
   branch          Branch   @relation(fields: [branchId], references: [id])
-  addon           Addon    @relation(fields: [addonId], references: [id])
+  addon           Addon?    @relation(fields: [addonId], references: [id])
    
-   branchFoodAddons BranchFoodAddon[]
+  branchFoodAddons BranchFoodAddon[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -877,15 +905,17 @@ model PriceHistory {
   newPrice    Decimal      @db.Decimal(10, 2)
   changeDate  DateTime     @default(now())
   foodId      String?
+  branchFoodId String?
   variantId   String?
   addonId     String?
   food        Food?        @relation(fields: [foodId], references: [id])
   variant     FoodVariant? @relation(fields: [variantId], references: [id])
+  branchFoodVariantId String?
+  branchFoodVariant BranchFoodVariant? @relation(fields: [branchFoodVariantId], references: [id])
   addon       Addon?       @relation(fields: [addonId], references: [id])
-
   branchAddonId String?
   branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
-
+  branchFood  BranchFood?  @relation(fields: [branchFoodId], references: [id])
   changedById String
 }
 
@@ -977,9 +1007,9 @@ model OrderItemAddon {
   unitPrice   Decimal   @db.Decimal(10, 2)
 
   addonId     String
-  addon       Addon     @relation(fields: [addonId], references: [id])
   branchAddonId String?
   branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
+  addon       Addon     @relation(fields: [addonId], references: [id])
 }
 
 model Address {
@@ -1455,12 +1485,10 @@ model CartItemAddon {
   cartItemId String
   cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
   quantity   Int
-  
-  addonId    String
-  addon      Addon    @relation(fields: [addonId], references: [id])
-  
   branchAddonId String?
-  branchAddon BranchAddon? @relation(fields: [branchAddonId], references: [id])
+  branchAddon   BranchAddon? @relation(fields: [branchAddonId], references: [id])
+  addonId       String
+  addon         Addon      @relation(fields: [addonId], references: [id])
 }
 
 model Payment {

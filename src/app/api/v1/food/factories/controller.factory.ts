@@ -16,17 +16,16 @@ import { VariantValidationService } from "../validation/variant-validation.servi
 
 export class ControllerFactory {
   static createAddonController() {
-    const addOnService = new AddonService(new AddOnValidationService());
+    const addOnService = new AddonService();
     const addOnImageService = new AddOnImageService();
-    const addOnValidationService = new AddOnValidationService();
 
-    return new AddonController(addOnService, addOnImageService, addOnValidationService);
+    return new AddonController();
   }
 
   static createFoodController() {
     // First, create services with their own dependencies
     const addOnValidationService = new AddOnValidationService();
-    const addOnService = new AddonService(addOnValidationService);
+    const addOnService = new AddonService();
 
     const variantValidationService = new VariantValidationService();
     const variantService = new VariantService(variantValidationService);

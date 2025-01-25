@@ -4,103 +4,80 @@ import { prisma } from "../../../../../shared/prisma";
 
 import { CreateFoodInput } from "../dtos/food.dto";
 import { CreateVariantInput } from "../dtos/variants.dto";
-import { AddOnValidationService } from "../validation/addon-validation.service";
 import { FoodValidationService } from "../validation/food-validation.service";
 import { VariantValidationService } from "../validation/variant-validation.service";
 
 import { AddonService } from "./addon.service";
 import { VariantService } from "./variants.service";
 
+interface FoodFilter {
+  branchId?: string;
+  tenantId?: string;
+  restaurantId?: string;
+}
 export class FoodService {
   constructor(
     private readonly foodValidationService: FoodValidationService,
     private readonly variantService: VariantService,
     private readonly addonService: AddonService
   ) {
-    this.foodValidationService = foodValidationService;
+    this.foodValidationService = new FoodValidationService();
     this.variantService = new VariantService(new VariantValidationService());
-    this.addonService = new AddonService(new AddOnValidationService());
+    this.addonService = new AddonService();
   }
 
-  // async createFood(input: CreateFoodInput) {
-  //   // Validate input
-  //   await this.foodValidationService.validateCreateFoodInput(input);
-
-  //   // Create food with all related data in a transaction
-  //   const createdFood = await prisma.$transaction(async (tx) => {
-  //     // Create the food
-  //     const food = await tx.food.create({
-  //       data: {
-  //         name: input.name,
-  //         description: input.description,
-  //         basePrice: input.basePrice,
-  //         minOrderQuantity: input.minOrderQuantity,
-  //         createdById: input.createdBy,
-
-  //         // Create food images
-  //         foodImages: {
-  //           create: input.images.map((image) => ({
-  //             url: image.url,
-  //             deviceType: image.deviceType,
-  //             width: image.width,
-  //             height: image.height,
-  //             size: image.size
-  //           }))
-  //         },
-
-  //         // Connect categories
-  //         categories: {
-  //           connect: input?.categoryIds?.map(id => ({ id }))
-  //         },
-
-  //         // Create variants if present
-  //         ...(input.variants && {
-  //           variants: {
-  //             create: input.variants.map(variant => ({
-  //               name: variant.name,
-  //               basePrice: variant.basePrice,
-  //               isActive: variant.isActive ?? true
-  //             }))
-  //           }
-  //         })
-  //       }
-  //     });
-
-  //     // Create addon groups and their relationships if present
-  //     if (input.addonGroups?.length) {
-  //       for (const group of input.addonGroups) {
-  //         // Create FoodAddon relationships with group information
-  //         await Promise.all(group.addons.map(addon=>
-  //           tx.foodAddon.create({
-  //             data: {
-  //               foodId: food.id,
-  //               addonId: addon.addonId,
-  //               isRequired: addon.isRequired ?? false,
-  //               maxQuantity: addon.maxQuantity ?? 1,
-  //               // store group information in metadata or additional fields
-  //               minQuantity: addon.minQuantity ?? 1,
-  //               defaultQuantity: addon.defaultQuantity ?? 1,
-  //               displayOrder: addon.displayOrder ?? 0,
-  //               addonGroupId: group.id
-  //             }
-  //           })
-  //         ))
-  //       }
-  //     }
-
-  //     return food;
-  //   });
-  //   return createdFood;
-  // }
-
+  private createBaseQuery (filter: FoodFilter) {
+    const where:any = {};
+    if(filter.tenantId){
+      where.tenantId = filter.tenantId
+    }
+    if(filter.branchId){
+      where.OR = [
+        {isGlobal: true},
+        {targetBranchIds: {
+          has: filter.branchId
+        }}
+      ]
+    }
+    return where;
+  }
+  
   // step 1 create basic food
   async createBasicFood(input: CreateFoodInput) {
+
+    // validate input
+  const validatedInput = await this.foodValidationService.validateCreateFoodInput(input);
+  let targetBranchIds: string[] = [];
+  if(input.isGlobal){
+    const branches = await prisma.branch.findMany({
+      where: {
+        tenantId: input.tenantId,
+        isActive: true,
+        isDeleted: false
+      },
+      select: {
+        id: true
+      }
+    })
+    targetBranchIds = branches.map(branch => branch.id);
+  }else{
+    targetBranchIds = input.targetBranchIds || []
+  }
     const food = await prisma.food.create({
       data: {
         name: input.name,
+        tenantId: input.tenantId,
         description: input.description,
         basePrice: input.basePrice,
         minOrderQuantity: input.minOrderQuantity,
+
+        isGlobal: input.isGlobal,
+        targetBranchIds: targetBranchIds,
+        allowCustomization: input.allowCustomization,
+        baseRecipe: input.baseRecipe,
+        status: input.status,
+        approvalStatus: input.approvalStatus,
+
         foodImages: {
           create: input.images.map(image => ({
             url: image.url,
@@ -120,8 +97,8 @@ export class FoodService {
   }
 
   // step 2: Add Variants
-  async addFoodVariants(foodId: string, variants: Array<Omit<CreateVariantInput, "foodId">>) {
-    const createdVariants = await this.variantService.createBulkVariants(foodId, variants);
+  async addFoodVariants(foodId: string, tenantId: string, variants: Array<CreateVariantInput>) {
+    const createdVariants = await this.variantService.createBulkVariants(foodId, tenantId,  variants);
     return createdVariants;
   }
 
@@ -147,10 +124,14 @@ if (!userExists) {
     throw new ApiError(httpStatus.BAD_REQUEST, `User with ID ${input.updatedBy} not found`);
 }
 
+// branchDate assignme
+const branchDate = input.isGlobal ? {isGlobal: true, targetBranchIds: input.targetBranchIds} : {isGlobal: false, targetBranchIds:input.branchIds || []}
+
   
     const updatedFood = await prisma.food.update({
       where: { id: input.id },
       data: {
+        ...branchDate,
         // Basic food properties
         basePrice: input.basePrice,
         minOrderQuantity: input.minOrderQuantity,
@@ -204,8 +185,10 @@ if (!userExists) {
     return updatedFood;
   }
 
-  async getAllFoods() {
+  async getAllFoods(branchId?: string) {
+    const baseWhere = this.createBaseQuery({branchId})
     const foods = await prisma.food.findMany({
+      where: baseWhere,
       include: {
         foodImages: true,
         variants: true,
@@ -214,29 +197,40 @@ if (!userExists) {
           include: {
             addon: true
           }
-        },
-        branches: true
+        }
       }
     });
     return foods;
   }  
 
-  async getFoodById(id: string) {
-    const food = await prisma.food.findUnique({
-      where: { id },
+  async getFoodById(foodId: string, tenantId:string, branchId?:string) {
+    const baseWhere = this.createBaseQuery({tenantId, branchId,})
+    console.log(baseWhere, "baseWhere", tenantId,branchId);
+    
+    const food = await prisma.food.findFirst({
+      where: { id: foodId, 
+        // isGlobal: true,
+        // targetBranchIds:{
+        //   has: branchId
+        // }
+      },
       include: {
         foodImages: true,
         variants: true,
         categories: true,
         branches: true,
         campaign: true,
-        foodAddons: true
+        foodAddons: true,
+        branchFood: true
       }
     });
+
+    console.log(food, "food");
+    
     return food;
   }
 
-  async getFoodByMainCategoryId(id: string) {
+  async getFoodByMainCategoryId(id: string, tenantId: string, branchId?:string) {
     // check i main category is active or not
     const mainCategory = await prisma.category.findUnique({
       where: { id },
@@ -259,7 +253,7 @@ if (!userExists) {
               // check the category relation
               {
                 OR: [
-                  { id }, // main caegory
+                  { id, isActive: true, tenantId: tenantId }, // main caegory
                   {
                     AND: [
                       { parentId: id },
@@ -284,10 +278,12 @@ if (!userExists) {
     return food;
   }
 
-  async getFoodBySubCategoryId(id: string) {
+  async getFoodBySubCategoryId(subCategoryId: string, tenantId: string, branchId?:string) {
     // verify this is active sub-category
+    const baseWhere = this.createBaseQuery({tenantId, branchId,})
     const subCategory = await prisma.category.findUnique({
-      where: { id },
+      where: { id: subCategoryId,
+       },
       select: {
         parentId: true,
         isActive: true,
@@ -315,7 +311,7 @@ if (!userExists) {
         categories: {
           some: {
             AND: [
-              { id },
+              { id: subCategoryId },
               { isActive: true },
               {
                 parent: {
@@ -342,7 +338,7 @@ if (!userExists) {
     return food;
   }
 
-  async getFoodsByCategory(categoryId: string) {
+  async getFoodsByCategory(categoryId: string, tenantId:string, branchId?:string) {
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
       select: {
@@ -420,4 +416,180 @@ if (!userExists) {
     });
     return food;
   }
+
+
+  // // copy food to branch
+  // async copyFoodToBranches(tx: Prisma.TransactionClient, foodId: string, tenantId: string) {
+  //   const globalFood = await tx.food.findFirst({
+  //     where: { id: foodId, tenantId: tenantId, 
+  //       OR: [
+  //         {
+  //           id: foodId,
+  //           isGlobal: true,
+  //           tenantId: tenantId
+  //         },
+  //         {
+  //           id: foodId,
+  //           tenantId: tenantId,
+  //         }
+  //       ]
+  //      },
+  //      include: {
+  //       foodImages: true,
+  //       variants: true,
+  //       categories: true,
+  //       foodAddons: {
+  //         include: {
+  //           addon: true
+  //         }
+  //       },
+  //      }
+  //   });
+
+  //   if(!globalFood){
+  //     throw new ApiError(httpStatus.NOT_FOUND, "Global Food Template not found");
+  //   }
+  //   console.log(globalFood, "globalFood", tenantId);
+    
+  // // 2. Validate that all target branches exist
+  // const existingBranches = await tx.branch.findMany({
+  //   where: {
+  //     id: {
+  //       in: globalFood.targetBranchIds
+  //     },
+  //     tenantId: tenantId,
+  //     isActive: true
+  //   },
+  //   select: { id: true }
+  // });
+
+  // console.log(existingBranches, "existingBranches");
+
+  // const validBranchIds = existingBranches.map(branch => branch.id);
+
+  // if (validBranchIds.length === 0) {
+  //   throw new ApiError(httpStatus.BAD_REQUEST, "No valid active branches found for copying");
+  // }
+
+
+  //     // 2. Create foods for each target branch
+  //     const branchFoods = await Promise.all(globalFood.targetBranchIds.map(async (branchId) => {
+  //       // create the branch food
+  //       const branchFood = await tx.branchFood.create({
+  //         data:{
+  //           tenantId: tenantId,
+  //           branchId: branchId,
+  //           foodId: globalFood.id,
+
+  //           // copy the food details
+  //           name: globalFood.name,
+  //           description: globalFood.description,
+  //           basePrice: globalFood.basePrice,
+
+  //           // copy settings 
+  //           allowCustomization: globalFood.allowCustomization,
+  //           baseRecipe: globalFood.baseRecipe ||  undefined,
+  //           status: 'PUBLISHED',
+
+  //                 // Copy marketing fields
+  //         isActive: true,
+  //         isPopular: globalFood.isPopular,
+  //         isRecommended: globalFood.isRecommended,
+  //         isNewArrival: globalFood.isNewArrival,
+  //         isFeatured: globalFood.isFeatured,
+
+  //          // Copy pricing
+  //           minOrderQuantity: globalFood.minOrderQuantity,
+          
+  //                   // Copy availability config
+  //           availabilityConfig: globalFood.availabilityConfig || undefined,
+  //             //  Copy images
+  //            defaultImageUrl: globalFood.defaultImageUrl,
+  //            foodImages: {
+  //             create: globalFood.foodImages.map(image => ({
+  //               url: image.url,
+  //               deviceType: image.deviceType,
+  //               width: image.width,
+  //               height: image.height,
+  //               size: image.size
+  //             }))
+  //           },
+
+  //                  // Copy categories
+  //         categories: {
+  //           connect: globalFood.categories.map(category => ({
+  //             id: category.id
+  //           }))
+  //         },
+
+  //              // Variants - only create if exists
+  //       variants: globalFood.variants.length > 0 ? {
+  //         create: globalFood.variants.map(variant => ({
+  //           tenantId: globalFood.tenantId,
+  //           branchId: branchId,
+  //           name: variant.name,
+  //           description: variant.description,
+  //           basePrice: variant.basePrice,
+  //           isRequired: variant.isRequired,
+  //           isActive: true,
+  //           isAvailable: true,
+  //           originalVariantId: variant.id
+  //         }))
+  //       } : undefined,
+
+  //      // Addons - only create if exists
+  //      addons: globalFood.foodAddons.length > 0 ? {
+  //       create: globalFood.foodAddons.map(foodAddon => ({
+  //         branchId: branchId,
+  //         tenantId: globalFood.tenantId,
+  //         name: foodAddon.addon.name,
+  //         price: foodAddon.addon.price,
+  //         description: foodAddon.addon.description,
+  //         maxSelections: foodAddon.maxSelections,
+  //         isRequired: foodAddon.isRequired,
+  //         displayOrder: foodAddon.displayOrder,
+  //         isActive: true,
+  //         isAvailable: true,
+  //         originalAddonId: foodAddon.addon.id,
+  //         preparationTime: foodAddon.addon.preparationTime,
+  //         allergens: foodAddon.addon.allergens,
+  //         nutritionInfo: foodAddon.addon.nutritionInfo || undefined,
+  //         imageUrl: foodAddon.addon.imageUrl
+  //       }))
+  //     } : undefined,
+  //         }
+  //       })
+
+  //       return branchFood;
+  //     }))
+
+  //     return branchFoods;
+  // }
+
+
+
+  // // update the approval process to trigger the copy food to branch
+  // async approveFoodTemplate(foodId: string, tenantId: string, userId: string) {
+  //  // 1. update the approval status to approved
+  //   const updatedFood = await prisma.$transaction(async (tx) => {
+  //     const food = await tx.food.update({
+  //       where: { id: foodId, 
+  //         tenantId: tenantId,
+  //       approvalStatus: "PENDING"
+  //      },
+  //      data: {
+  //       approvalStatus: "APPROVED",
+  //       updatedById: userId
+  //      }
+  //   })
+
+
+
+  //       //2. if approval is approved, then copy the food to all branches
+  //       if(food.isGlobal || food.targetBranchIds.length > 0){
+  //     await this.copyFoodToBranches(tx, foodId, tenantId);
+  //   }
+  //   return food;
+  // })
+  // }
 }

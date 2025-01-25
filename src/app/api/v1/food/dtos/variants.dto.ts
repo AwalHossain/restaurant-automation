@@ -6,6 +6,7 @@ export type CreateVariantInput = {
   isActive?: boolean;
   isRequired?: boolean;
   foodId: string;
+  tenantId: string;
 };
 
 export type UpdateVariantInput = {

@@ -4,8 +4,9 @@ import { CreateAddonInput, CreateBulkFoodAddonsInput, CreateFoodAddonInput, Upda
 import { AddOnValidationService } from "../validation/addon-validation.service";
 
 export class AddonService {
-  constructor(private readonly addOnValidationService: AddOnValidationService) {
-    this.addOnValidationService = addOnValidationService;
+  private readonly addOnValidationService: AddOnValidationService;
+  constructor() {
+    this.addOnValidationService = new AddOnValidationService();
   }
 
   async createAddOn(input: CreateAddonInput) {
@@ -14,6 +15,7 @@ export class AddonService {
     const addon = await prisma.addon.create({
       data: {
         name: input.name,
+        tenantId: input.tenantId,
         price: input.price,
         description: input.description,
         category: input.category,
@@ -49,13 +51,14 @@ export class AddonService {
   }
 
   async createBulkFoodAddons(input: CreateBulkFoodAddonsInput) {
-    const {foodId, addons} = input;
+    const {foodId, addons, tenantId} = input;
     console.log(addons, "addons", foodId);
     const createdFoodAddons = await prisma.$transaction(async (tx) => {
      const results = await Promise.all(
       addons.map(async (addon:CreateFoodAddonInput) => {
         return tx.foodAddon.createMany({
           data: {
+           tenantId: tenantId,
            foodId:foodId,
            addonId:addon.addonId,
            maxSelections: addon.maxSelections,
@@ -72,8 +75,11 @@ export class AddonService {
   }
 
 
-  async getAddOns() {
+  async getAddOns(tenantId:string) {
     const addons = await prisma.addon.findMany({
+      where:{
+        tenantId:tenantId
+      },
       include:{
         createdBy:true
       }
@@ -81,8 +87,11 @@ export class AddonService {
     return addons;
   }
 
-  async getAllFoodAddons() {
+  async getAllFoodAddons(tenantId:string) {
     const foodAddons = await prisma.foodAddon.findMany({
+      where:{
+        tenantId:tenantId
+      },
       include:{
         addon:true,
         food:true
@@ -93,55 +102,60 @@ export class AddonService {
     return foodAddons;
   }
 
-  async getActiveAddOns() {
+  async getActiveAddOns(tenantId:string) {
     const addons = await prisma.addon.findMany({
       where:{
-        isActive:true
+        isActive:true,
+        tenantId:tenantId
       }
     });
     return addons;
   }
   
-  async getActiveFoodAddons() {
+  async getActiveFoodAddons(tenantId:string) {
     const foodAddons = await prisma.foodAddon.findMany({
       where:{
-        isActive:true
+        isActive:true,
+        tenantId:tenantId
       }
     });
     return foodAddons;
   }
 
 
-  async updateAddOn( input: UpdateAddonInput) {
+  async updateAddOn( input: UpdateAddonInput,tenantId:string) {
     const {id} = input;
     await this.addOnValidationService.validateUpdateAddonInput(input);
 
 
     const addon = await prisma.addon.update({
       where: { id,
-        isActive:true
+        isActive:true,
+        tenantId:tenantId
        },
       data: input
     });
     return addon;
   }
 
-  async getAddOnById(id: string) {
+  async getAddOnById(id: string,tenantId:string ) {
     const addon = await prisma.addon.findUnique({
       where: { id,
-        isActive:true
+        isActive:true,
+        tenantId:tenantId
        }
     });
     return addon;
   }
 
   // toggle add on active status
-  async toggleAddOnActiveStatus(id: string) {
+  async toggleAddOnActiveStatus(id: string,tenantId:string) {
 
     // check the addon first 
     const addon = await prisma.addon.findUnique({
       where: { 
         id,
+        tenantId:tenantId
        }
     });
     if(!addon) throw new ApiError(404, "Addon not found");
@@ -149,6 +163,7 @@ export class AddonService {
     const updatedAddon = await prisma.addon.update({
       where: { 
         id,
+        tenantId:tenantId
        },
       data: { isActive:{
         set: !addon.isActive
@@ -158,13 +173,14 @@ export class AddonService {
   }
 
   // delete add on
-  async deleteFoodAddon(foodId:string,addonId:string){
+  async deleteFoodAddon(foodId:string,addonId:string,tenantId:string){
     const foodAddon = await prisma.foodAddon.delete({
       where: {
        foodId_addonId:{
         foodId,
         addonId
-       }
+       },
+       tenantId:tenantId
       }
     });
     console.log(foodAddon, "foodAddon");
@@ -172,7 +188,7 @@ export class AddonService {
   }
 
   // update food addon
-  async updateFoodAddon(input:UpdateFoodAddonInput){
+  async updateFoodAddon(input:UpdateFoodAddonInput,tenantId:string){
     const {foodId,addonId} = input;
 
     const foodAddon = await prisma.foodAddon.update({
@@ -180,7 +196,8 @@ export class AddonService {
         foodId_addonId:{
           foodId,
           addonId
-        }
+        },
+        tenantId:tenantId
       },
       data: input
     });
@@ -188,10 +205,11 @@ export class AddonService {
   }
 
   // get food addons
-  async getFoodAddons(foodId:string){
+  async getFoodAddons(foodId:string,tenantId:string){
     const foodAddons = await prisma.foodAddon.findMany({
       where: { 
         foodId,
+        tenantId:tenantId
        },
        include:{
         addon:true
@@ -203,13 +221,14 @@ export class AddonService {
     return foodAddons;
   }
 
-  async toogleFoodAddonActiveStatus(foodId:string,addonId:string){
+  async toogleFoodAddonActiveStatus(foodId:string,addonId:string,tenantId:string){
     const foodAddon = await prisma.foodAddon.findUnique({
       where:{
         foodId_addonId:{
           foodId,
           addonId
-        }
+        },
+        tenantId:tenantId
       }
     })
 
@@ -220,7 +239,8 @@ export class AddonService {
         foodId_addonId:{
           foodId,
           addonId
-        }
+        },
+        tenantId:tenantId
       },
       data:{isActive:{set:!foodAddon.isActive}}
     })

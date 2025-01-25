@@ -3,6 +3,7 @@ import sendResponse from "../../../../../shared/sendResponse";
 
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import ApiError from "../../../../../errors/ApiError";
 import { AddSubCategoryInput, UpdateCategoryWithSubsInput } from "../dtos/category.dto";
 import { CategoryService } from "../services/category.services";
 import { CategoryValidationService } from "../validation/category-validation.service";
@@ -18,6 +19,19 @@ export class CategoryController {
 
   createCategory = catchAsync(async (req: Request, res: Response) => {
     const { body } = req;
+    const userId = req.user?.userId;  
+    const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
+    const restaurantId = req.tenantContext?.restaurantId;
+    if (!userId) {
+      throw new ApiError(400, 'User not found');
+    }
+
+    body.createdBy = userId;
+    body.updatedBy = userId;
+    body.tenantId = tenantId;
+    body.branchId = branchId;
+    body.restaurantId = restaurantId;
     const validatedData = await this.categoryValidationService.validateCreateCategory(body);
     const result = await this.categoryService.createCategory(validatedData);
     sendResponse(res, {

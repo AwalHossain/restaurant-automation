@@ -36,7 +36,12 @@ export class CategoryValidationService {
             .min(10, "Description must be at least 10 characters")
             .max(255, "Description cannot exceed 255 characters")
             .optional(),
-        parentId: z.string().optional()
+        parentId: z.string().optional(),
+        createdBy: z.string(),
+        updatedBy: z.string(),
+        tenantId: z.string(),
+        restaurantId: z.string(),
+        branchId: z.string().optional()
     });
 
     // Schema for adding a subcategory

@@ -19,6 +19,7 @@ export class PromotionService {
     const result = await prisma.promotion.create({
       data: {
         ...promotionData,
+        tenantId:input.tenantId,
         foods: {
           connect: input?.foods?.map(food => ({ id: food }))
         },

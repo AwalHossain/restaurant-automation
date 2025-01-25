@@ -4,6 +4,7 @@ import { AddonCategory } from "@prisma/client";
 // DTO for creating a new Addon
 export interface CreateAddonInput {
   name: string;
+  tenantId: string;
   price: number;
   description?: string;
   imageUrl?: string;
@@ -32,6 +33,7 @@ export interface CreateFoodAddonInput {
 
 // DTO for bulk creating FoodAddons
 export interface CreateBulkFoodAddonsInput {
+  tenantId: string;
   foodId: string;
   addons: Array<CreateFoodAddonInput>;
 }

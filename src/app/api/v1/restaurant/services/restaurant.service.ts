@@ -1,17 +1,48 @@
 import { Request } from "express";
+import httpStatus from "http-status";
+import ApiError from "../../../../../errors/ApiError";
+import { TenantHelper } from "../../../../../helpers/tenant.helper";
 import { prisma } from "../../../../../shared/prisma";
 import { CreateBranchInput, CreateRestaurantInput } from "../dtos/restaurant.dto";
 
+import { Role } from "@prisma/client";
+import { JwtUtils } from "../../../../../helpers/jwt.helper";
+import { DomainService } from "../../../../Domainservices/domain.service";
 
 
 export class RestaurantService {
 
+    private domainService = new DomainService();
+
+    constructor() {
+        this.domainService = new DomainService();
+    }
+
+
   async  createRestaurant(input: CreateRestaurantInput, req: Request) {
     const restaurant = await prisma.$transaction(async (tx) => {
+        // check if the restaurant already exists
+        const existingRestaurant = await tx.restaurant.findUnique({
+            where: { 
+                adminId: input.adminId
+             }
+        });
+        console.log(existingRestaurant, "existingRestaurant");
+        if (existingRestaurant) {
+            throw new ApiError(httpStatus.BAD_REQUEST, "Restaurant already exists");
+        }
+
+        console.log(existingRestaurant, "existingRestaurant");
+
+        // get tenant id
+        const tenantId = await TenantHelper.getTenantId(input.domain);
+        
+
         const restaurant = await tx.restaurant.create({
             data: {
                 name: input.name,
                 domain: input.domain,
+                adminId: input.userId,
                 address: input.address,
                 logo: input.logo,
                 phoneNumber: input.phoneNumber,
@@ -21,8 +52,10 @@ export class RestaurantService {
                 ratings: input.ratings,
                 isActive: input.isActive,
                 isSingleBranch: input.isSingleBranch,
-                settings: {
+                tenantId: tenantId,
+                settings: input.settings ? {
                     create:{
+                        tenantId: tenantId,
                         currency: input.settings?.currency || 'BDT',
                         currencySymbol: input.settings?.currencySymbol || '৳',
                         timezone: input.settings?.timezone || 'Asia/Dhaka',
@@ -56,9 +89,10 @@ export class RestaurantService {
                         timezoneOffset: input.settings?.timezoneOffset || 0,
                         updatedAt: new Date(),
                     }
-                },
+                }: undefined,
                 pointsSystem: input.pointsSystem ? {
                     create: {
+                        tenantId: tenantId,
                         isEnabled: input.pointsSystem.isEnabled,
                         pointsRate: input.pointsSystem.pointsRate,
                         redemptionRate: input.pointsSystem.redemptionRate,
@@ -79,6 +113,7 @@ export class RestaurantService {
         const defaultBranch = await tx.branch.create({
             data: {
                 name: `${restaurant.name} - Main Branch`,
+                tenantId: tenantId,
                 isDefault: true,
                 restaurantId: restaurant.id,
                 address: restaurant.address || '',
@@ -94,26 +129,32 @@ export class RestaurantService {
         // update restaurant with default branch id
        const updatedRestaurant = await tx.restaurant.update({
             where: { id: restaurant.id },
-            data: { defaultBranchId: defaultBranch.id },
+            data: { defaultBranchId: defaultBranch.id,
+                restaurantStaff: {
+                    create: {
+                        userId: input.adminId,
+                        role: Role.ADMIN,
+                        isActive: true,
+                        tenantId: tenantId,
+                    },
+                    connect: {
+                        userId_restaurantId: {
+                            userId: input.adminId,
+                            restaurantId: restaurant.id
+                        }
+                    }
+                }
+
+             },
             include: {
                 settings: true,
                 pointsSystem: true,
             }
         })
 
-        // userId     String
-        // user       User           @relation(fields: [userId], references: [id])
-        // action     AuditLogAction
-        // entityType String // BRANCH, FOOD, ORDER, USER, PROMOTION, ADDON, CATEGORY, ADDRESS, PAYMENT, CHECKOUT, CHECKOUT_ITEM, CHECKOUT_ITEM_ADDON, CHECKOUT_ITEM_PROMOTION, CHECKOUT_ITEM_ADDON_PROMOTION, CHECKOUT_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION, CHECKOUT_ITEM_PROMOTION_ADDON_PROMOTION_PROMOTION
-        // entityId   String // Id of the entity being audited
-        // oldData    Json? // Old data of the entity
-        // newData    Json? // New data of the entity
-        // ipAddress  String?
-        // userAgent  String?
-
-        // update audit log
         await tx.auditLog.create({
             data: {
+                tenantId: tenantId,
                 action: 'CREATE',
                 entityType: 'RESTAURANT',
                 entityId: restaurant.id,
@@ -124,8 +165,29 @@ export class RestaurantService {
             }
         })
 
-        return updatedRestaurant;
-    })
+        const accessToken = JwtUtils.generateAccessToken({
+            userId: restaurant.adminId,
+            role: Role.ADMIN,
+            tenantId: restaurant.tenantId,
+            restaurantId: restaurant.id
+        });
+
+        const refreshToken = JwtUtils.generateRefreshToken({
+            userId: input.adminId,
+            role: Role.ADMIN,
+            tenantId: restaurant.tenantId,
+            restaurantId: restaurant.id
+        });
+
+        return {
+            restaurant: updatedRestaurant,
+            accessToken,
+            refreshToken
+        };
+    },{
+        timeout: 25000,
+    }
+)
 
     // create default branch
     return restaurant;
@@ -135,8 +197,35 @@ export class RestaurantService {
         const result = await prisma.restaurant.findUnique({
             where: { domain },
             include: {
-                branches: true,
+                // branches: true,
                 settings: true
+            }
+        });
+        return result;
+    }
+
+    async getRestaurantByAdminId(adminId: string) {
+        const result = await prisma.restaurant.findUnique({
+            where: { adminId },
+            include: {
+                branches: true,
+                settings: true,
+                pointsSystem: true,
+                restaurantStaff: true
+
+            }
+        });
+        return result;
+    }
+
+    async getRestaurantByTenantId(tenantId: string) {
+        const result = await prisma.restaurant.findUnique({
+            where: { tenantId },
+            include: {
+                branches: true,
+                settings: true,
+                pointsSystem: true,
+                restaurantStaff: true
             }
         });
         return result;
@@ -145,6 +234,7 @@ export class RestaurantService {
     async getAllRestaurants() {
         const result = await prisma.restaurant.findMany({
             include: {
+                restaurantStaff: true,
                 branches: {
                     include:{
                         BusinessHours: true,
@@ -167,6 +257,7 @@ export class RestaurantService {
                 ...input,
                 branchDeliverySettings: input.branchDeliverySettings ? {
                     create: {
+                        tenantId: input.tenantId,
                         baseDeliveryFee: input.branchDeliverySettings.baseDeliveryFee ?? 0,
                         maxDeliveryRadius: input.branchDeliverySettings.maxDeliveryRadius ?? 0,
                         distanceBasedFees: input.branchDeliverySettings.distanceBasedFees ?? [],
@@ -179,10 +270,11 @@ export class RestaurantService {
     }
 
 
-    async getAllBranches(restaurantId: string) {
+    async getAllBranches(restaurantId: string, tenantId: string) {
         const result = await prisma.branch.findMany({
             where:{
-                restaurantId
+                restaurantId,
+                tenantId: tenantId
             }
         });
         return result;
@@ -274,13 +366,21 @@ export class RestaurantService {
 
     // update restaurant points system
     async updateRestaurantPointsSystem(input: Partial<CreateRestaurantInput> & { restaurantId: string }) {
-       
+           // First verify the restaurant exists
+    const restaurant = await prisma.restaurant.findUnique({
+        where: { id: input.restaurantId },
+        select: { tenantId: true }
+    });
+
+    if (!restaurant) {
+        throw new ApiError(httpStatus.NOT_FOUND, "Restaurant not found");
+    }
        
         const result = await prisma.pointsSystem.upsert({
-            where: { restaurantId: input.restaurantId
-             },
+            where: { restaurantId: input.restaurantId, tenantId: input.tenantId },
             create: {
                 restaurantId: input.restaurantId,
+                tenantId: restaurant.tenantId,
                 isEnabled: input.pointsSystem?.isEnabled ?? false,
                 pointsRate: input.pointsSystem?.pointsRate ?? 1.00,
                 redemptionRate: input.pointsSystem?.redemptionRate ?? 0.50,

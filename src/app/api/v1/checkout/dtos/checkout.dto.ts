@@ -1,6 +1,7 @@
 import { OrderType, PaymentMethod } from '@prisma/client'
 
 export interface CreateCheckoutInput {
+  tenantId: string
   branchId: string
   orderType: OrderType
   paymentMethod?: PaymentMethod
@@ -39,6 +40,7 @@ export interface ValidatedCartItem {
 }
 
 export interface CalculateTotalsInput {
+  tenantId: string;
   branchId: string;
   orderType: OrderType;
   addressId?: string;
@@ -60,5 +62,6 @@ export interface CalculateTotalsInput {
     promoCode?: string;
     points?: string;
   };
- 
+  tenantId: string;
+  branchId?: string;
 }

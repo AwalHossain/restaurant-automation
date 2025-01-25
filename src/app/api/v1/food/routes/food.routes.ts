@@ -3,6 +3,9 @@ import { Router } from "express";
 import multer from "multer";
 import { ENUM_USER_ROLE } from "../../../../../enums/user";
 import auth from "../../../../middlewares/auth/auth-middleware";
+import branchTenantContextMiddleware from "../../../../middlewares/auth/branch-tenantContext-middleware";
+import publicTenantContext from "../../../../middlewares/auth/public-tenant-context.middleware";
+import tenantContextMiddleware from "../../../../middlewares/auth/tenant-context.middleware";
 import { ControllerFactory, VariantControllerFactory } from "../factories/controller.factory";
 
 const upload = multer({
@@ -21,22 +24,50 @@ const variantController = VariantControllerFactory.createVariantController();
 router.post(
   "/create",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  upload.single("image"),
+  tenantContextMiddleware(),
   foodController.createFood
 );
 
 router.patch(
   "/update/:id",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  upload.single("image"),
+  tenantContextMiddleware(),
   foodController.updateFoodDetails
 );
 
-router.get("/all", foodController.getAllFoods);
-router.get("/main-category/:id", foodController.getFoodByMainCategoryId);
-router.get("/sub-category/:id", foodController.getFoodBySubCategoryId);
-router.get("/category/:id", foodController.getFoodByCategoryId);
-router.post("/step/variant/create", foodController.addVariants);
+router.get("/:branchId/all", 
+  publicTenantContext(),
+  foodController.getAllFoods);
+
+  // get food by main category
+router.get("/main-category",
+  publicTenantContext(),
+  foodController.getFoodByMainCategoryId);
+
+  // get food by sub category
+router.get("/sub-category",
+  publicTenantContext(),
+  foodController.getFoodBySubCategoryId);
+
+  // get food by category
+router.get("/sub-category",
+  publicTenantContext(),
+  foodController.getFoodBySubCategoryId);
+
+  // get food by category id
+router.get("/category",
+  publicTenantContext(),
+  foodController.getFoodByCategoryId);
+
+  // get food by food id
+router.get("/get-one",
+  publicTenantContext(),
+  foodController.getFoodById);
+
+router.post("/step/variant/create",
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  branchTenantContextMiddleware(),
+  foodController.addVariants);
 // router.post(
 //   "/step/addon/create",
 //   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
@@ -44,12 +75,14 @@ router.post("/step/variant/create", foodController.addVariants);
 //   foodController.addAddonGroups
 // );
 
-router.get("/:id", foodController.getFoodById);
+router.get("/:foodId/get-one",
+  publicTenantContext(),
+  foodController.getFoodById);
 
-// category routes
-
-// Addon routes
-
-// variant routes
+// approve food
+router.post("/approve",
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
+  tenantContextMiddleware(),
+  foodController.approveFood);
 
 export const FoodRoutes = router;

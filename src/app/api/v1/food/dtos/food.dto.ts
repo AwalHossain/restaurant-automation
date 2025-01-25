@@ -1,3 +1,4 @@
+import { ApprovalStatus, FoodStatus } from "@prisma/client";
 import { ImageSpecs } from "../../../../../types/food.types";
 
 
@@ -11,6 +12,15 @@ import { ImageSpecs } from "../../../../../types/food.types";
 
 export type CreateFoodInput = {
   id?: string;
+  tenantId: string;
+  branchId: string;
+  restaurantId: string;
+  isGlobal: boolean;
+  targetBranchIds: string[];
+  allowCustomization?: boolean;
+  baseRecipe?: string[];
+  status: FoodStatus;
+  approvalStatus: ApprovalStatus;
   name: string;
   userId: string;
   description: string;

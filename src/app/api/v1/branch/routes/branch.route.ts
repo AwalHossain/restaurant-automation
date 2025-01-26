@@ -8,7 +8,7 @@ import express from 'express';
 import { ENUM_USER_ROLE } from '../../../../../enums/user';
 import auth from '../../../../middlewares/auth/auth-middleware';
 import { branchAuth } from '../../../../middlewares/auth/branch-auth-middleware';
-import tenantContextMiddleware from '../../../../middlewares/auth/tenant-context.middleware';
+import branchTenantContextMiddleware from '../../../../middlewares/auth/branch-tenantContext-middleware';
 import { BranchController } from '../controller/branch.controller';
 
 
@@ -21,7 +21,7 @@ router.post(
         ENUM_USER_ROLE.SUPER_ADMIN,
         ENUM_USER_ROLE.ADMIN
     ),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.createBranch
 );
 
@@ -29,7 +29,7 @@ router.post(
 router.patch(
     '/:branchId/update-basic-info',
     branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.updateBranchBasicInfo
 );
 
@@ -37,7 +37,7 @@ router.patch(
 router.patch(
     '/:branchId/update-business-hours',
     branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.updateBranchBusinessHours
 );
 
@@ -45,14 +45,14 @@ router.patch(
 router.patch(
     '/:branchId/update-delivery-settings',
     branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.updateBranchDeliverySettings
 );
 
 router.get(
     '/get-all',
     auth(Role.SUPER_ADMIN, Role.ADMIN),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.getAllBranch
 );
 
@@ -60,21 +60,21 @@ router.get(
 router.get(
     '/:branchId/branch-details',
     branchAuth([Role.MODERATOR, Role.MANAGER]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.getBranchById
 );
 
 router.patch(
     '/:branchId/update-status',
     branchAuth([Role.MANAGER]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.updateBranchStatus
 );  
 
 router.delete(
     '/:branchId/delete',
     branchAuth([Role.SUPER_ADMIN]),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.deleteBranch
 );
 
@@ -86,7 +86,7 @@ router.get(
         ENUM_USER_ROLE.MODERATOR,
         ENUM_USER_ROLE.MANAGER
     ),
-    tenantContextMiddleware(),
+    branchTenantContextMiddleware(),
     branchController.getAllActiveBranch
 );
 

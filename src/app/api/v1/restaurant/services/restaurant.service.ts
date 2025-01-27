@@ -198,9 +198,11 @@ export class RestaurantService {
             where: { domain },
             include: {
                 // branches: true,
-                settings: true
+                settings: true,
+                branches: true
             }
-        });
+        },
+    );
         return result;
     }
 

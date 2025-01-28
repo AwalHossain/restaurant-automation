@@ -191,7 +191,7 @@ export class RestaurantService {
             refreshToken
         };
     },{
-        timeout: 25000,
+        timeout: 50000,
     }
 )
 

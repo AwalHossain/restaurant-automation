@@ -79,7 +79,8 @@ export class FoodController {
       updatedBy: userId,
       tenantId,
       branchId,
-      restaurantId
+      restaurantId,
+      ...req.body
     };
 
 

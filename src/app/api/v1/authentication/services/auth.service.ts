@@ -332,7 +332,7 @@ async userLogin(input: LoginUserInput) {
     
 
     if (existingAdmin) {
-      throw new ApiError(400, 'Username already exists');
+      throw new ApiError(400, 'Email already exists');
     }
 
 
@@ -425,7 +425,9 @@ async userLogin(input: LoginUserInput) {
     console.log(user, "user");
     
 
-    if (!user || user.role !== Role.ADMIN) {
+    console.log(user?.role, "user.role", Role.ADMIN);
+
+    if (!user || user?.role !== Role.ADMIN) {
       throw new ApiError(401, 'Invalid credentials');
     }
 

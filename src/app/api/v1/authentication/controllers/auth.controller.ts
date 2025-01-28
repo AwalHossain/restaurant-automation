@@ -235,12 +235,12 @@ superAdminLogin = catchAsync(async (req: Request, res: Response) => {
       },
     });
   });
-  
+
 adminLogin = catchAsync(async (req: Request, res: Response) => {
     const {email, password} = req.body;
 
     const data = {email, password}
-    const { user, accessToken, refreshToken } = await this.authService.superAdminLogin(data);
+    const { user, accessToken, refreshToken } = await this.authService.adminLogin(data);
   
     sendResponse(res, {
       statusCode: httpStatus.OK,

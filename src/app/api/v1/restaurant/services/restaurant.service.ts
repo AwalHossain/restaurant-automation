@@ -165,6 +165,12 @@ export class RestaurantService {
             }
         })
 
+        // update user with tenantId
+        await prisma.user.update({
+            where: { id: input.userId },
+            data: { tenantId: tenantId }
+        })
+
         const accessToken = JwtUtils.generateAccessToken({
             userId: restaurant.adminId,
             role: Role.ADMIN,

@@ -163,7 +163,26 @@ if (!userExists) {
     return updatedFood;
   }
 
-  async getAllBranchFoods(tenantId: string, branchId: string) {
+  // get all branch all food
+  async getAllFoods(tenantId: string) {
+    const foods = await prisma.branchFood.findMany({
+      where: {
+        tenantId: tenantId,
+      },
+      include: {
+        foodImages: true,
+        variants: true,
+        categories: true,
+        branch: true
+      }
+    });
+    return foods;
+  }
+
+
+
+  // get all food belongs to a branch
+  async getAllFoodsbyBranchId (tenantId: string, branchId: string) {
     const foods = await prisma.branchFood.findMany({
         where: {
           tenantId: tenantId,

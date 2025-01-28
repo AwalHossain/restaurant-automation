@@ -17,7 +17,13 @@ app.use(
     origin: "*", // your frontend URL
     credentials: true, // important for cookies
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
+    allowedHeaders: ["Content-Type", 
+      "Authorization", "Cookie",
+      "branch-id",
+      "restaurant-id",
+      "tenant-id",
+      "user-id",
+    ]
   })
 );
 app.use(cookieParser());

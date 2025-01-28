@@ -13,8 +13,7 @@ router.post('/login-user', controller.userLogin);
 
 // admin routes
 router.post('/register', controller.adminRegister);
-router.post('/login',
-    controller.adminLogin);
+router.post('/login', controller.adminLogin);
 
 // super admin routes
 router.post('/super/register', controller.superAdminRegister);

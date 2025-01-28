@@ -93,12 +93,25 @@ export class BranchFoodController {
     });
   });
 
-  // get all branch foods
-  getAllBranchFoods = catchAsync(async (req: Request, res: Response) => {
+
+  // get all food from all branches
+  getAllFoods = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantContext?.tenantId;
+    const result = await this.branchFoodService.getAllFoods(tenantId as string);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Foods fetched successfully",
+      data: result
+    });
+  });
+
+  // get  food list by branch id
+  getAllFoodsbyBranchId = catchAsync(async (req: Request, res: Response) => {
     const branchId = req.tenantContext?.branchId;
     const tenantId = req.tenantContext?.tenantId;
 
-    const result = await this.branchFoodService.getAllBranchFoods(tenantId as string,branchId as string);
+    const result = await this.branchFoodService.getAllFoodsbyBranchId(tenantId as string,branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,

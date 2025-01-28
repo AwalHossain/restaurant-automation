@@ -12,9 +12,9 @@ router.post('/login-user', controller.userLogin);
 
 
 // admin routes
-router.post('/register', controller.adminRegister);
+router.post('/register', controller.superAdminRegister);
 router.post('/login',
-    controller.adminLogin);
+    controller.superAdminLogin);
 
 // super admin routes
 router.post('/super/register', controller.superAdminRegister);

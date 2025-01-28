@@ -115,7 +115,7 @@ export class BranchFoodController {
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "Foods fetched successfully",
+      message: "Foods fetched successfully by branch id",
       data: result
     });
   });

@@ -156,7 +156,7 @@ export class AuthController {
       },
     });
   });
-  AdminRegister = catchAsync(async (req: Request, res: Response) => {
+  adminRegister = catchAsync(async (req: Request, res: Response) => {
     const {username, password, email, phone, role} = req.body;
     const { user, accessToken, refreshToken } = await this.authService.adminRegister({username, password, email, phone, role});
   
@@ -235,7 +235,8 @@ superAdminLogin = catchAsync(async (req: Request, res: Response) => {
       },
     });
   });
-AdminLogin = catchAsync(async (req: Request, res: Response) => {
+  
+adminLogin = catchAsync(async (req: Request, res: Response) => {
     const {email, password} = req.body;
 
     const data = {email, password}

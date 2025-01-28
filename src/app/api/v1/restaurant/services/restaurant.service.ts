@@ -20,23 +20,72 @@ export class RestaurantService {
 
 
   async  createRestaurant(input: CreateRestaurantInput, req: Request) {
+      // check if the restaurant already exists
+      const existingRestaurant = await prisma.restaurant.findUnique({
+          where: { 
+              adminId: input.adminId
+           }
+      });
+      console.log(existingRestaurant, "existingRestaurant");
+      if (existingRestaurant) {
+          throw new ApiError(httpStatus.BAD_REQUEST, "Restaurant already exists");
+      }
+      console.log(existingRestaurant, "existingRestaurant");
+
+      // get tenant id
+      const tenantId = await TenantHelper.getTenantId(input.domain);
+      
+      const settingsData = input.settings ? {
+            tenantId: tenantId,
+            currency: input.settings?.currency || 'BDT',
+            currencySymbol: input.settings?.currencySymbol || '৳',
+            timezone: input.settings?.timezone || 'Asia/Dhaka',
+            baseDeliveryFee: input.settings?.baseDeliveryFee || 0,
+            deliveryFeeCalculationType: input.settings?.deliveryFeeCalculationType || 'FIXED',
+            distanceBasedFees: input.settings?.distanceBasedFees || [],
+            minOrderAmount: input.settings?.minOrderAmount || 0,
+            maxOrderAmount: input.settings?.maxOrderAmount || 1000000,
+            taxPercentage: input.settings?.taxPercentage || 0,
+            serviceChargePercentage: input.settings?.serviceChargePercentage || 0,
+            allowGuestCheckout: input.settings?.allowGuestCheckout || false,
+            requirePhoneNumber: input.settings?.requirePhoneNumber || false,
+            requireEmail: input.settings?.requireEmail || false,
+            takeoutEnabled: input.settings?.takeoutEnabled || false,
+            takeoutServiceCharge: input.settings?.takeoutServiceCharge || 0,
+            dineInEnabled: input.settings?.dineInEnabled || false,
+            dineInServiceCharge: input.settings?.dineInServiceCharge || 0,
+            globalMessage: input.settings?.globalMessage || '',
+            globalMessageEnabled: input.settings?.globalMessageEnabled || false,
+            lastUpdatedById: input.settings?.lastUpdatedById,
+            customerSupportEmail: input.settings?.customerSupportEmail || '',
+            restaurantType: input.settings?.restaurantType || 'FINE_DINING',
+            acceptsPreorders: input.settings?.acceptsPreorders || false,
+            autoAssignRiders: input.settings?.autoAssignRiders || false,
+            smsNotifications: input.settings?.smsNotifications || false,
+            emailNotifications: input.settings?.emailNotifications || false,
+            errorNotificationEmail: input.settings?.errorNotificationEmail || '',
+            notifyOnCriticalErrors: input.settings?.notifyOnCriticalErrors || false,
+            autoResponseEnabled: input.settings?.autoResponseEnabled || false,
+            feedbackResponseDelay: input.settings?.feedbackResponseDelay || 0,
+            timezoneOffset: input.settings?.timezoneOffset || 0,
+            updatedAt: new Date(),
+    }: undefined
+
+    // points system data
+    const pointsSystemData = input.pointsSystem ? {
+        tenantId: tenantId,
+        isEnabled: input.pointsSystem.isEnabled,
+        pointsRate: input.pointsSystem.pointsRate,
+        redemptionRate: input.pointsSystem.redemptionRate,
+        minPointsRedeem: input.pointsSystem.minPointsRedeem,
+        maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
+        minSpendForPoints: input.pointsSystem.minSpendForPoints,
+        pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
+        pointsExpiryType: input.pointsSystem.pointsExpiryType,
+    }: undefined
+
     const restaurant = await prisma.$transaction(async (tx) => {
-        // check if the restaurant already exists
-        const existingRestaurant = await tx.restaurant.findUnique({
-            where: { 
-                adminId: input.adminId
-             }
-        });
-        console.log(existingRestaurant, "existingRestaurant");
-        if (existingRestaurant) {
-            throw new ApiError(httpStatus.BAD_REQUEST, "Restaurant already exists");
-        }
 
-        console.log(existingRestaurant, "existingRestaurant");
-
-        // get tenant id
-        const tenantId = await TenantHelper.getTenantId(input.domain);
-        
 
         const restaurant = await tx.restaurant.create({
             data: {
@@ -53,55 +102,11 @@ export class RestaurantService {
                 isActive: input.isActive,
                 isSingleBranch: input.isSingleBranch,
                 tenantId: tenantId,
-                settings: input.settings ? {
-                    create:{
-                        tenantId: tenantId,
-                        currency: input.settings?.currency || 'BDT',
-                        currencySymbol: input.settings?.currencySymbol || '৳',
-                        timezone: input.settings?.timezone || 'Asia/Dhaka',
-                        baseDeliveryFee: input.settings?.baseDeliveryFee || 0,
-                        deliveryFeeCalculationType: input.settings?.deliveryFeeCalculationType || 'FIXED',
-                        distanceBasedFees: input.settings?.distanceBasedFees || [],
-                        minOrderAmount: input.settings?.minOrderAmount || 0,
-                        maxOrderAmount: input.settings?.maxOrderAmount || 1000000,
-                        taxPercentage: input.settings?.taxPercentage || 0,
-                        serviceChargePercentage: input.settings?.serviceChargePercentage || 0,
-                        allowGuestCheckout: input.settings?.allowGuestCheckout || false,
-                        requirePhoneNumber: input.settings?.requirePhoneNumber || false,
-                        requireEmail: input.settings?.requireEmail || false,
-                        takeoutEnabled: input.settings?.takeoutEnabled || false,
-                        takeoutServiceCharge: input.settings?.takeoutServiceCharge || 0,
-                        dineInEnabled: input.settings?.dineInEnabled || false,
-                        dineInServiceCharge: input.settings?.dineInServiceCharge || 0,
-                        globalMessage: input.settings?.globalMessage || '',
-                        globalMessageEnabled: input.settings?.globalMessageEnabled || false,
-                        lastUpdatedById: input.settings?.lastUpdatedById,
-                        customerSupportEmail: input.settings?.customerSupportEmail || '',
-                        restaurantType: input.settings?.restaurantType || 'FINE_DINING',
-                        acceptsPreorders: input.settings?.acceptsPreorders || false,
-                        autoAssignRiders: input.settings?.autoAssignRiders || false,
-                        smsNotifications: input.settings?.smsNotifications || false,
-                        emailNotifications: input.settings?.emailNotifications || false,
-                        errorNotificationEmail: input.settings?.errorNotificationEmail || '',
-                        notifyOnCriticalErrors: input.settings?.notifyOnCriticalErrors || false,
-                        autoResponseEnabled: input.settings?.autoResponseEnabled || false,
-                        feedbackResponseDelay: input.settings?.feedbackResponseDelay || 0,
-                        timezoneOffset: input.settings?.timezoneOffset || 0,
-                        updatedAt: new Date(),
-                    }
+                settings: settingsData ? {
+                    create: settingsData
                 }: undefined,
-                pointsSystem: input.pointsSystem ? {
-                    create: {
-                        tenantId: tenantId,
-                        isEnabled: input.pointsSystem.isEnabled,
-                        pointsRate: input.pointsSystem.pointsRate,
-                        redemptionRate: input.pointsSystem.redemptionRate,
-                        minPointsRedeem: input.pointsSystem.minPointsRedeem,
-                        maxPointsRedeem: input.pointsSystem.maxPointsRedeem,
-                        minSpendForPoints: input.pointsSystem.minSpendForPoints,
-                        pointsExpiryDays: input.pointsSystem.pointsExpiryDays,
-                        pointsExpiryType: input.pointsSystem.pointsExpiryType,
-                    }
+                pointsSystem: pointsSystemData ? {
+                    create: pointsSystemData
                 }: undefined
             },
         
@@ -110,41 +115,42 @@ export class RestaurantService {
             }
         });
 
-        const defaultBranch = await tx.branch.create({
-            data: {
-                name: `${restaurant.name} - Main Branch`,
-                tenantId: tenantId,
-                isDefault: true,
-                restaurantId: restaurant.id,
-                address: restaurant.address || '',
-                phoneNumber: restaurant.phoneNumber || '',
-                email: restaurant.email || '',
-                isActive: restaurant.isActive || true,
-                latitude: input.latitude || '',
-                longitude: input.longitude || '',
-                
-            }
-        })
+        console.log(restaurant, "restaurant");
+
+        const [defaultBranch, staff] = await Promise.all([
+            await tx.branch.create({
+                data: {
+                    name: `${restaurant.name} - Main Branch`,
+                    tenantId: tenantId,
+                    isDefault: true,
+                    restaurantId: restaurant.id,
+                    address: restaurant.address || '',
+                    phoneNumber: restaurant.phoneNumber || '',
+                    email: restaurant.email || '',
+                    isActive: restaurant.isActive || true,
+                    latitude: input.latitude || '',
+                    longitude: input.longitude || '',
+                    
+                }
+            }),
+
+            await tx.restaurantStaff.create({
+                data: {
+                    userId: input.adminId,
+                    role: Role.ADMIN,
+                    isActive: true,
+                    tenantId: tenantId,
+                    restaurantId: restaurant.id,
+                }
+            })
+        ])
+
+        console.log(defaultBranch, "defaultBranch");
 
         // update restaurant with default branch id
        const updatedRestaurant = await tx.restaurant.update({
             where: { id: restaurant.id },
             data: { defaultBranchId: defaultBranch.id,
-                restaurantStaff: {
-                    create: {
-                        userId: input.adminId,
-                        role: Role.ADMIN,
-                        isActive: true,
-                        tenantId: tenantId,
-                    },
-                    connect: {
-                        userId_restaurantId: {
-                            userId: input.adminId,
-                            restaurantId: restaurant.id
-                        }
-                    }
-                }
-
              },
             include: {
                 settings: true,
@@ -152,7 +158,9 @@ export class RestaurantService {
             }
         })
 
-        await tx.auditLog.create({
+        console.log(updatedRestaurant, "updatedRestaurant");
+
+    const auditLog = await tx.auditLog.create({
             data: {
                 tenantId: tenantId,
                 action: 'CREATE',
@@ -165,11 +173,17 @@ export class RestaurantService {
             }
         })
 
+        console.log(auditLog, "auditLog");
+
         // update user with tenantId
-        await prisma.user.update({
+      const updatedUser = await tx.user.update({
             where: { id: input.userId },
             data: { tenantId: tenantId }
         })
+
+        console.log(updatedUser, "updatedUser");
+
+        // generate access token
 
         const accessToken = JwtUtils.generateAccessToken({
             userId: restaurant.adminId,

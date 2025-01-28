@@ -10,6 +10,16 @@ import { UpdateStaffDto } from "../dtos/restaurant-stuff.dto";
 export class RestaurantStuffService {
 
 
+    // get all staffs
+    async getAllStaffs(tenantId: string) {
+        const staffs = await prisma.restaurantStaff.findMany({
+            where: {
+                tenantId: tenantId
+            }
+        });
+        return staffs;
+    }
+
     async updateStaff(data: UpdateStaffDto) {
         return await prisma.$transaction(async (tx)=>{
             // check if the user is already a staff of the restaurant

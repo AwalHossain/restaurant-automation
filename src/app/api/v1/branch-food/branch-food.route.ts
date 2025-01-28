@@ -31,9 +31,12 @@ router.patch(
   branchFoodController.updateBranchFoodDetails
 );
 
-router.get("/:branchId/all", 
+// get all foods
+router.get("/all", 
+  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
   branchTenantContextMiddleware(),
-  branchFoodController.getAllBranchFoods);
+  branchFoodController.getAllFoods);
+
 
   // get food by main category
 router.get("/main-category",
@@ -59,6 +62,13 @@ router.get("/category",
 router.get("/get-one",
   branchTenantContextMiddleware(),
   branchFoodController.getBranchFoodById);
+
+// get all foods by branch id
+router.get("/:branchId/all", 
+  branchTenantContextMiddleware(),
+  branchFoodController.getAllFoodsbyBranchId);
+
+
 
 router.post("/step/variant/create",
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),

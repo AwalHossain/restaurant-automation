@@ -1,9 +1,10 @@
-import { BranchStaffRole, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiError";
 import { prisma } from "../../../shared/prisma";
 import { StaffRole } from "../../../types/permission";
+import { BranchStaffRole } from "../../../types/permission.types";
 import { DomainService } from "../../Domainservices/domain.service";
 
 interface TenantContext {
@@ -11,7 +12,7 @@ interface TenantContext {
   restaurantId: string;
   branchId: string;
   restaurantStaffRole: StaffRole;
-  branchStaffRole: BranchStaffRole;
+  branchStaffRole: typeof BranchStaffRole;
 }
 
 
@@ -106,6 +107,7 @@ console.log(req.tenantContext, "tenantId",tenantId);
         }
     });
 
+    console.log(restaurant, "restaurant");
     if(!restaurant){
         return next(new ApiError(httpStatus.UNAUTHORIZED, "No restaurant found"));
     }
@@ -114,7 +116,7 @@ console.log(req.tenantContext, "tenantId",tenantId);
     req.tenantContext = {
         tenantId,
         restaurantId: restaurant.id,
-        restaurantStaffRole: restaurant.restaurantStaff[0].role
+        restaurantStaffRole: restaurant.restaurantStaff[0]
     }
     console.log(req.tenantContext, "req.tenantContext", req.params.branchId);
 

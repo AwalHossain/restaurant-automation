@@ -1,13 +1,14 @@
+import { RoleScope } from "@prisma/client";
 
 
 
-interface CreateRoleDto {
+export interface CreateRoleDto {
     name: string;
-    description: string;
-    permissions: string[];
-    inheritedFromId?: string;
     tenantId: string;
-    // scope: RoleScope;
+    description: string;
+    permissionNames: string[];
+    inheritedFromId?: string;
+    scope: RoleScope;
 }
 
-
+export interface UpdateRoleDto extends Partial<CreateRoleDto> {}

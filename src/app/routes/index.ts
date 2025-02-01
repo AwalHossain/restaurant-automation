@@ -13,6 +13,8 @@ import { FoodRoutes } from "../api/v1/food/routes/food.routes";
 import { VariantRoutes } from "../api/v1/food/routes/variant.routes";
 import { PromotionRoutes } from "../api/v1/promotion/routes/promotion.routes";
 import { RestaurantRoutes } from "../api/v1/restaurant/routes/restaurant.routes";
+import { PermissionRoutes } from "../api/v1/role-permission/routes/permission.routes";
+import { RoleRoutes } from "../api/v1/role-permission/routes/role.routes";
 
 const router = express.Router();
 
@@ -79,7 +81,15 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/branch-staff",
     route: BranchStaffRoutes
-  }
+  },
+  {
+    path: "/permission",
+    route: PermissionRoutes
+  },
+  {
+    path: "/role",
+    route: RoleRoutes
+  },
   // Add more routes as needed
 ];
 

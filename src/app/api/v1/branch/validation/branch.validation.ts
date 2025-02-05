@@ -1,4 +1,4 @@
-import { BusinessHours } from "@prisma/client";
+import { BusinessHours, Prisma } from "@prisma/client";
 import httpStatus from "http-status";
 import { z } from "zod";
 import ApiError from "../../../../../errors/ApiError";
@@ -82,21 +82,26 @@ export class BranchValidationService {
     }).optional()
   });
 
-  async validateCreateBranch(input: any) {
+  async validateCreateBranch(input: any, tx?: Prisma.TransactionClient) {
     try {
       const validatedData = this.createBranchSchema.parse(input);
 
+      // use tx if provided
+      const db = tx || prisma;
+
       // Check if restaurant exists
-      const restaurant = await prisma.restaurant.findUnique({
+      const restaurant = await db.restaurant.findUnique({
         where: { id: validatedData.restaurantId }
       });
+
+      console.log(restaurant, "restaurant");
 
       if (!restaurant) {
         throw new ApiError(httpStatus.NOT_FOUND, "Restaurant not found");
       }
 
       // Check if branch name already exists for this restaurant
-      const existingBranch = await prisma.branch.findFirst({
+      const existingBranch = await db.branch.findFirst({
         where: {
           name: validatedData.name,
           restaurantId: validatedData.restaurantId

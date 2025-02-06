@@ -4,7 +4,7 @@ import { JwtUtils } from "../../../../../helpers/jwt.helper";
 import { generateOTP } from "../../../../../helpers/otp.helper";
 import { comparePassword, hashPassword } from "../../../../../helpers/password.helper";
 import { prisma } from "../../../../../shared/prisma";
-import { ActiveSession, LastSelectedRole, LoginUserInput, RegisterUserInput, RestaurantStaffRecord, RoleGroup, StaffLoginInput, StaffRecord, StaffRegisterInput, SuperAdminLoginInput, SuperAdminRegisterInput, UnifiedLoginInput, UserWithRoles } from "../dtos/auth.dto";
+import { ActiveSession, LastSelectedRole, LoginUserInput, RegisterUserInput, RestaurantStaffRecord, StaffRecord, StaffRegisterInput, SuperAdminRegisterInput, UnifiedLoginInput, UserWithRoles } from "../dtos/auth.dto";
 
 
 
@@ -232,13 +232,34 @@ export class AuthService {
 
   // Staff registration
   async staffRegister(input: StaffRegisterInput) {
-    const existingStaff = await prisma.user.findUnique({
-      where: { username: input.username }
+    console.log('Input received:', input); // Debug log
+
+    const { identifier, type, tenantId, branchId } = input;
+    
+    // Build where conditions based on identifier type
+    const whereConditions: Prisma.UserWhereInput = {
+      AND: [
+        {
+          OR: [
+            type === 'EMAIL' ? { email: identifier } :
+            type === 'PHONE' ? { phone: identifier } :
+            { username: identifier }
+          ]
+        },
+        // Add tenantId condition if provided
+        ...(tenantId ? [{ tenantId }] : [])
+      ]
+    };
+
+    const existingStaff = await prisma.user.findFirst({
+      where: whereConditions
     });
 
     if (existingStaff) {
       throw new ApiError(400, 'Username already exists');
     }
+
+    // 
 
     const hashedPassword = await hashPassword(input.password);
 
@@ -247,14 +268,23 @@ export class AuthService {
       // create base user 
       const staff = await tx.user.create({
         data: {
-          username: input.username,
+          ...(input.type === 'EMAIL' ? { email: input.identifier } :
+          input.type === 'PHONE' ? { phone: input.identifier } :
+          { username: input.identifier }),
           tenantId: input.tenantId,
+          role: Role.STAFF,
           password: hashedPassword,
         }
-      })
+      });
 
-      // Assign role based on the scope
+      console.log('Staff created:', staff); // Debug log
+      console.log('Branch ID:', input.branchId); // Debug log
+
+
+      // TODO: check if the role goes to the branch or restaurant
+
       if (input.branchId) {
+        console.log('Creating branch staff'); // Debug log
         await tx.branchStaff.create({
           data: {
             userId: staff.id,
@@ -262,15 +292,17 @@ export class AuthService {
             tenantId: input.tenantId,
             roleId: input.roleId,
           }
-        })
+        });
       } else {
+        console.log('Creating restaurant staff'); // Debug log
         await tx.restaurantStaff.create({
           data: {
             userId: staff.id,
             tenantId: input.tenantId,
             roleId: input.roleId,
+            restaurantId: input.restaurantId,
           }
-        })
+        });
       }
 
       return staff;
@@ -284,20 +316,28 @@ export class AuthService {
 
   // Admin registration
   async adminRegister(input: SuperAdminRegisterInput) {
+    const whereConditions = {
+      OR: [
+        { email: input.email }
+      ] as {email?: string, phone?: string}[]
+    }
+
+    if (input.phone) {
+      whereConditions.OR.push({ phone: input.phone });
+    }
+
     const existingAdmin = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: input.email },
-          { phone: input.phone },
-        ]
-      }
+      where: whereConditions
     });
 
     console.log(existingAdmin, "existingAdmin");
 
 
     if (existingAdmin) {
-      throw new ApiError(400, 'Email already exists');
+      throw new ApiError(
+        400, 
+        `${existingAdmin.email === input.email ? 'Email' : 'Phone number'} already exists`
+      );
     }
 
 
@@ -308,10 +348,9 @@ export class AuthService {
         email: input.email,
         password: hashedPassword,
         role: Role.ADMIN,
-        phone: input.phone ?? '',
+        ...(input.phone ? { phone: input.phone } : {})
       }
-    },
-    );
+    });
 
     const payload = {
       userId: admin.id,
@@ -333,139 +372,102 @@ export class AuthService {
 
 
   // Admin login
-  async adminLogin(input: SuperAdminLoginInput) {
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: input.email },
-          { phone: input.phone },
-        ]
-      },
-      include: {
-        restaurantStaff: true,
-        branchStaff: true,
-      }
-    });
+  // async staffLogin(input: StaffLoginInput) {
+  //   if (!input.username || !input.password) {
+  //     throw new ApiError(400, 'Username and password are required');
+  //   }
 
-    console.log(user, "user");
+  //   const admin = await prisma.user.findUnique({
+  //     where: {
+  //       username: input.username,
+  //       tenantId: input.tenantId,
+  //     },
+  //     include: {
+  //       restaurantStaff: true,
+  //       branchStaff: true,
+  //     }
+  //   });
 
-
-    console.log(user?.role, "user.role", Role.ADMIN);
-
-    if (!user || user?.role !== Role.ADMIN) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
-
-    const isPasswordValid = await comparePassword(input.password, user.password!);
-    if (!isPasswordValid) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
-
-    const payload = {
-      userId: user.id,
-      role: user.role,
-      tenantId: user.tenantId ?? '',
-      restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
-    }
-
-    const accessToken = JwtUtils.generateAccessToken(payload);
-    const refreshToken = JwtUtils.generateRefreshToken(payload);
-
-    const { password, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      accessToken,
-      refreshToken
-    };
-  }
-
-  // Admin login
-  async staffLogin(input: StaffLoginInput) {
-    if (!input.username || !input.password) {
-      throw new ApiError(400, 'Username and password are required');
-    }
-
-    const admin = await prisma.user.findUnique({
-      where: {
-        username: input.username,
-        tenantId: input.tenantId,
-      },
-      include: {
-        restaurantStaff: true,
-        branchStaff: true,
-      }
-    });
-
-    console.log(admin, "admin");
+  //   console.log(admin, "admin");
 
 
-    // Check if user exists and is an admin type user
-    if (!admin || !['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'DELIVERY_BOY', 'MODERATOR', 'RIDER'].includes(admin.role)) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
+  //   // Check if user exists and is an admin type user
+  //   if (!admin || !['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'DELIVERY_BOY', 'MODERATOR', 'RIDER'].includes(admin.role)) {
+  //     throw new ApiError(401, 'Invalid credentials');
+  //   }
 
-    // Check if user is active
-    if (!admin.isActive) {
-      throw new ApiError(401, 'Account is inactive');
-    }
+  //   // Check if user is active
+  //   if (!admin.isActive) {
+  //     throw new ApiError(401, 'Account is inactive');
+  //   }
 
-    const isPasswordValid = await comparePassword(input.password, admin.password!);
-    if (!isPasswordValid) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
+  //   const isPasswordValid = await comparePassword(input.password, admin.password!);
+  //   if (!isPasswordValid) {
+  //     throw new ApiError(401, 'Invalid credentials');
+  //   }
 
-    const payload = {
-      userId: admin.id,
-      role: admin.role,
-      tenantId: admin?.tenantId ?? null,
-      restaurantId: admin?.restaurantStaff[0]?.restaurantId ?? null,
-    }
+  //   const payload = {
+  //     userId: admin.id,
+  //     role: admin.role,
+  //     tenantId: admin?.tenantId ?? null,
+  //     restaurantId: admin?.restaurantStaff[0]?.restaurantId ?? null,
+  //   }
 
-    const accessToken = JwtUtils.generateAccessToken(payload);
-    const refreshToken = JwtUtils.generateRefreshToken(payload);
+  //   const accessToken = JwtUtils.generateAccessToken(payload);
+  //   const refreshToken = JwtUtils.generateRefreshToken(payload);
 
-    // await prisma.refreshToken.create({
-    //   data: {
-    //     token: refreshToken,
-    //     userId: admin.id,
-    //     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    //   }
-    // });
+  //   // await prisma.refreshToken.create({
+  //   //   data: {
+  //   //     token: refreshToken,
+  //   //     userId: admin.id,
+  //   //     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  //   //   }
+  //   // });
 
-    // Update last login
-    await prisma.user.update({
-      where: { id: admin.id },
-      data: { lastLoginAt: new Date() }
-    });
+  //   // Update last login
+  //   await prisma.user.update({
+  //     where: { id: admin.id },
+  //     data: { lastLoginAt: new Date() }
+  //   });
 
-    const { password, ...adminWithoutPassword } = admin;
-    return {
-      user: adminWithoutPassword,
-      accessToken,
-      refreshToken
-    };
-  }
+  //   const { password, ...adminWithoutPassword } = admin;
+  //   return {
+  //     user: adminWithoutPassword,
+  //     accessToken,
+  //     refreshToken
+  //   };
+  // }
 
   // Unified login
   async unifiedLogin(input: UnifiedLoginInput) {
+    const { identifier, type, tenantId } = input;
+    
+    // Build where conditions based on identifier type
+    const whereConditions: Prisma.UserWhereInput = {
+      AND: [
+        {
+          OR: [
+            type === 'EMAIL' ? { email: identifier } :
+            type === 'PHONE' ? { phone: identifier } :
+            { username: identifier }
+          ]
+        },
+        // Add tenantId condition if provided
+        ...(tenantId ? [{ tenantId }] : [])
+      ]
+    };
     // 1. Find user - handle both tenant and system admin cases
     let user = await prisma.user.findFirst({
-      where: {
-        AND: [
-          {
-            OR: [
-              { email: input.identifier },
-              { username: input.identifier }
-            ]
-          },
-          input.tenantId ? { tenantId: input.tenantId } : {}
-        ]
-      },
+      where: whereConditions,
       include: {
         restaurantStaff: {
           include: {
             role: true,
-            restaurant: true
+            restaurant: {
+              include: {
+                branches: true
+              }
+            }
           }
         },
         branchStaff: {
@@ -478,7 +480,8 @@ export class AuthService {
             }
           }
         },
-        userLoginSession: true
+        userLoginSession: true,
+        
       }
     });
 
@@ -496,77 +499,139 @@ export class AuthService {
     const roleGroups = this.groupRolesByRestaurant(user);
 
     // 4. Get last selected role
-    const lastSession = user.userLoginSession?.map((session) => session.lastSelectedRole);
+    const lastSelectedRole = user?.userLoginSession[0]?.lastSelectedRole;
+    const lastSession = await prisma.userLoginSession.findFirst({
+      where: {
+        userId: user.id,
+        tenantId: user.tenantId ?? '',
+      }
+    })
+    
+    // token
+    const payload = {
+      userId: user.id,
+      role: user.role,
+      tenantId: user.tenantId ?? '',
+      restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+    }
+
+    const accessToken = JwtUtils.generateAccessToken(payload);
+    const refreshToken = JwtUtils.generateRefreshToken(payload);
 
     return {
       user: {
         id: user.id,
         email: user.email,
-        username: user.username
+        username: user.username,
+        role: user.role,
+        tenantId: user.tenantId,
+        restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+        restaurantStaff: user.restaurantStaff,
+        branchStaff: user.branchStaff
       },
       roleGroups,
-      lastSelectedRole: lastSession,
+      lastSelectedRole: lastSelectedRole,
+      // lastSession: lastSession,
+      accessToken,
+      refreshToken
+    };
+
+
+  }
+
+  async getUserContext(userId: string, tenantId: string) {
+    let user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+        tenantId: tenantId
+      },
+      include: {
+        restaurantStaff: {
+          include: {
+            role: true,
+            restaurant: {
+              include: {
+                branches: true
+              }
+            }
+          }
+        },
+        branchStaff: {
+          include: {
+            role: true,
+            branch: {
+              include: {
+                restaurant: true
+              }
+            }
+          }
+        },
+        userLoginSession: true,
+        
+      }
+    });
+
+    if (!user || !user.isActive) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const roleGroups = this.groupRolesByRestaurant(user);
+    const lastSelectedRole = user.userLoginSession[0].lastSelectedRole;
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        tenantId: user.tenantId,
+        restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+        restaurantStaff: user.restaurantStaff,
+        branchStaff: user.branchStaff
+      },
+      roleGroups: roleGroups,
+      lastSelectedRole: lastSelectedRole
     };
   }
 
 
   private groupRolesByRestaurant(user: UserWithRoles) {
-    const groupedRoles = new Map<string, RoleGroup>();
-
-    // Group roles by restaurant
-    user.restaurantStaff.forEach((staff) => {
-
-      if (!groupedRoles.has(staff?.restaurantId!)) {
-        groupedRoles.set(staff?.restaurantId!, {
-          restaurantId: staff?.restaurantId!,
-          restaurantName: staff?.restaurant?.name ?? '',
-          roles: {
-            restaurantRoles: [],
-            branchRoles: []
-          }
-        })
+    // Get restaurant info from either restaurant staff or branch staff
+    const restaurantInfo = user.restaurantStaff[0]?.restaurant || user.branchStaff[0]?.branch?.restaurant;
+    
+    if (!restaurantInfo) {
+      throw new ApiError(404, 'Restaurant not found');
+    }
+  
+    const roleGroups = {
+      id: restaurantInfo.id,
+      name: restaurantInfo.name,
+      roles: {
+        restaurant: user.restaurantStaff[0] ? {
+          id: `RESTAURANT-${user.restaurantStaff[0].id}`,
+          roleId: user.restaurantStaff[0].roleId,
+          roleName: user.restaurantStaff[0].role?.name ?? ''
+        } : undefined,
+        branches: user.branchStaff.map(branchStaff => ({
+          id: `BRANCH-${branchStaff.id}`,
+          branchId: branchStaff.branchId,
+          name: branchStaff.branch?.name ?? '',
+          roleId: branchStaff.roleId,
+          roleName: branchStaff.role?.name ?? ''
+        }))
       }
-
-      groupedRoles.get(staff?.restaurantId!)?.roles.restaurantRoles.push({
-        id: `restaurant-${staff?.id}`,
-        type: 'RESTAURANT',
-        roleId: staff?.roleId,
-        roleName: staff?.role?.name ?? '',
-        locationId: staff?.restaurantId ?? '',
-      });
-    })
-
-    // Group roles by branch
-    user.branchStaff.forEach((staff) => {
-      const restaurantId = staff?.branch?.restaurantId;
-      if (!groupedRoles.has(restaurantId!)) {
-        groupedRoles.set(restaurantId!, {
-          restaurantId: restaurantId!,
-          restaurantName: staff?.branch?.restaurant?.name ?? '',
-          roles: {
-            restaurantRoles: [],
-            branchRoles: []
-          }
-        })
-      }
-
-      groupedRoles.get(restaurantId!)?.roles.branchRoles.push({
-        id: `branch-${staff?.id}`,
-        type: 'BRANCH',
-        roleId: staff?.roleId,
-        roleName: staff?.role?.name ?? '',
-        locationId: staff?.branchId ?? '',
-      });
-
-    })
-
-
-    // return grouped roles
-    return Array.from(groupedRoles.values());
-
+    };
+  
+    // Remove undefined properties
+    // if (!roleGroups.roles.restaurant) {
+    //   delete roleGroups.roles.restaurant;
+    // }
+    // if (roleGroups.roles.branches.length === 0) {
+    //   delete roleGroups.roles.branches;
+    // }
+  
+    return roleGroups;
   }
-
-
   // select role
   async selectRole(userId: string, tenantId: string, roleOption: string, deviceId: string) {
     const [type, staffId] = roleOption.split('-');
@@ -578,28 +643,40 @@ export class AuthService {
       throw new ApiError(404, 'Invalid role selection');
     }
 
-    // Prepare session data
-    const newSession: ActiveSession = {
-      deviceId,
-      roleId: staffRecord.roleId,
-      type: type as 'RESTAURANT' | 'BRANCH',
-      locationId: type === 'RESTAURANT'
-        ? (staffRecord as { restaurantId: string }).restaurantId
-        : (staffRecord as { branchId: string }).branchId,
-      lastAccessed: new Date()
-    }
+  // Helper function to get location ID based on type
+  const getLocationId = (type: string) => {
+    return type === 'RESTAURANT' || type === 'ADMIN_BRANCH'
+      ? (staffRecord as { restaurantId: string }).restaurantId
+      : (staffRecord as { branchId: string }).branchId;
+  };
 
-    const lastSelectedRole: LastSelectedRole = {
-      roleId: staffRecord.roleId,
+  // Prepare session data
+  const newSession: ActiveSession = {
+    deviceId,
+    roleId: staffRecord.roleId,
+    location: {
+      type: type as 'RESTAURANT' | 'BRANCH' | 'ADMIN_BRANCH',
+      id: getLocationId(type),
+    },
+    lastAccessed: new Date()
+  };
+
+  const lastSelectedRole: LastSelectedRole = {
+    roleId: staffRecord.roleId,
+    location: {
       type: type as 'RESTAURANT' | 'BRANCH',
-      locationId: type === 'RESTAURANT'
-        ? (staffRecord as { restaurantId: string }).restaurantId
-        : (staffRecord as { branchId: string }).branchId,
+      id: getLocationId(type),
     }
+  };
 
     // update the user login session
     await prisma.userLoginSession.upsert({
-      where: { id: userId },
+      where: { 
+        userId_tenantId: {
+          userId: userId,
+          tenantId: tenantId
+        }
+       },
       update: {
         lastSelectedRole: lastSelectedRole as unknown as Prisma.InputJsonValue,
         activeSessions: {
@@ -616,6 +693,7 @@ export class AuthService {
 
     // Generate tokens
     const payload = {
+      tenantId: tenantId,
       userId,
       ...lastSelectedRole,
       deviceId
@@ -626,17 +704,22 @@ export class AuthService {
 
     return {
       accessToken,
-      refreshToken
+      refreshToken,
+      payload
     }
 
   }
 
   // Handle role switching
-  async switchRole(id: string, tenantId: string, newRoleOption: string, deviceId: string) {
+  async switchRole(userId: string, tenantId: string, newRoleOption: string, deviceId: string) {
+    
+    
     const session = await prisma.userLoginSession.findUnique({
       where: {
-        id: id,
-        tenantId: tenantId
+        userId_tenantId: {
+          userId: userId,
+          tenantId: tenantId
+        }
       }
     })
 
@@ -653,7 +736,7 @@ export class AuthService {
     }
 
     // generate new session
-    return this.selectRole(id, tenantId, newRoleOption, deviceId);
+    return this.selectRole(userId, tenantId, newRoleOption, deviceId);
 }
 
 
@@ -681,21 +764,33 @@ export class AuthService {
 
   private async getStaffRecord(type: string, staffId: string): Promise<StaffRecord> {
     if (type === 'RESTAURANT') {
-      return await prisma.restaurantStaff.findUnique({
+      const staff = await prisma.restaurantStaff.findUnique({
         where: { id: staffId },
         include: {
           role: true,
           restaurant: true
         }
       }) as RestaurantStaffRecord;
+      console.log(staff, "staff");
+      return staff;
     } else if (type === 'BRANCH') {
-      return await prisma.branchStaff.findUnique({
+      const staff = await prisma.branchStaff.findUnique({
         where: { id: staffId },
         include: {
           role: true,
           branch: true
         }
-      })
+      });
+      return staff;
+    }else if(type === 'ADMIN_BRANCH'){
+      const branch = await prisma.restaurantStaff.findUnique({
+        where: { id: staffId },
+        include: {
+          role: true,
+          restaurant: true
+        }
+      }) as RestaurantStaffRecord;
+      return branch;
     }
     return null;
   }

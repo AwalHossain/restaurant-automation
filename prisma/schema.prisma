@@ -17,7 +17,7 @@ model User {
   id            String    @id @default(uuid())
   tenantId      String?
   email         String?   @unique
-  phone         String    @unique
+  phone         String?    @unique
   password      String?
   firstName     String?
   lastName      String?
@@ -64,10 +64,11 @@ model User {
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  // Relations
+
   restaurantStaff RestaurantStaff[] @relation("RestaurantStaff")
   createdAddons Addon[] @relation("AddonCreator") // Changed from Addon
   updatedAddons Addon[] @relation("AddonUpdater") // Changed from Addon
+  userLoginSession UserLoginSession[]
 
   // createdAddonGroups AddonGroup[] @relation("AddonGroupCreator")
   // updatedAddonGroups AddonGroup[] @relation("AddonGroupUpdater")
@@ -84,7 +85,7 @@ model User {
 
   updatedRestaurantSettings RestaurantSettings[] @relation("RestaurantSettingsUpdater")
 
-  @@unique([phone, tenantId])    // Allow same phone across different tenants
+  @@unique([phone, tenantId], name: "phone_tenant_unique")    // Allow same phone across different tenants
   @@unique([email, tenantId])    // Allow same email across different tenants
   @@unique([username, tenantId]) // Allow same username across different tenants
   
@@ -92,9 +93,125 @@ model User {
   @@index([phone, isActive])    // For phone + active status queries
   @@index([email, isActive])    // For email + active status queries
   @@index([username, isActive]) // For username + active status queries
-  @@unique([tenantId, isActive])
+  // @@unique([tenantId, isActive])
 
   @@map("users")
+}
+
+model UserLoginSession {
+  id String @id @default(cuid())
+  userId String
+  tenantId String
+  lastSelectedRole Json?
+  activeSessions Json[]  // array of active sessions
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([userId, tenantId])
+  @@unique([userId, tenantId])
+}
+
+enum BasePermission {
+   // Order Management
+  VIEW_ORDERS
+  MANAGE_ORDERS
+  
+  // Menu Management
+  VIEW_MENU
+  MANAGE_MENU
+  
+  // User Management
+  VIEW_USERS
+  MANAGE_USERS
+  
+  // Branch Management
+  VIEW_BRANCH
+  MANAGE_BRANCH
+  
+  // Settings
+  VIEW_SETTINGS
+  MANAGE_SETTINGS
+
+  // Restaurant Management
+  VIEW_RESTAURANT
+  MANAGE_RESTAURANT
+
+  // Promotion Management
+  VIEW_PROMOTION
+  MANAGE_PROMOTION
+
+  // Report Management
+  VIEW_REPORT
+  MANAGE_REPORT
+
+  // Audit Management
+  VIEW_AUDIT
+  MANAGE_AUDIT
+
+}
+
+model Permission {
+  id String @id @default(cuid())
+  name String @unique
+  description String?
+  tenantId String
+  // relations
+  rolePermissions RolePermission[]
+
+  @@index([tenantId])
+  @@index([name])
+  @@unique([tenantId, name])
+}
+
+
+model UserRole {
+  id String @id @default(cuid())
+  tenantId String
+  name String
+  description String?
+  // permissions BasePermission[]
+  scope RoleScope @default(RESTAURANT)
+  isActive Boolean @default(true)
+
+   // Role inheritance
+  inheritedFromId String?
+  inheritedFrom     UserRole?          @relation("ParentRole", fields: [inheritedFromId], references: [id])
+  childRoles  UserRole[] @relation("ParentRole")
+  // relations
+  restaurantStaffRoles RestaurantStaff[]
+  branchStaffRoles BranchStaff[]
+  rolePermissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+  tenantId String
+  roleId String
+  permissionId String
+  role UserRole @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+// custom permission
+  customPermission CustomPermission[]
+
+  @@unique([tenantId, roleId, permissionId])
+  @@index([tenantId])
+
+}
+
+enum RoleScope {
+  BRANCH
+  RESTAURANT
 }
 
 model OTP {
@@ -187,9 +304,10 @@ model Branch {
 
   // restaurant relation
   restaurantId String?
-  Restaurant   Restaurant? @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant? @relation("RestaurantBranches", fields: [restaurantId], references: [id], onDelete: Cascade)
   User         User[]
   branchAddons BranchAddon[]
+
 
   // default branch
   defaultForRestaurant Restaurant? @relation("DefaultBranch")
@@ -197,13 +315,13 @@ model Branch {
 
 
   // business hours
-  BusinessHours BusinessHours[]
+  businessHours BusinessHours[]
 
   // cart
   Cart Cart[]
 
   // promotion
-  Promotion Promotion[]
+  promotion Promotion[]
 
   // branch food
   branchFood             BranchFood[]
@@ -221,18 +339,25 @@ model BranchStaff {
   id     String @id @default(cuid())
   userId String
   tenantId String
+  roleId String
+  branchId String
 
-  role     BranchStaffRole // Admin, manager, rider, customer
+  customPermissions CustomPermission[]
   isActive Boolean @default(true)
 
+  // relations
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  branchId  String
+  role      UserRole     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, branchId])
+  @@unique([userId, roleId, branchId])
   @@index([tenantId])
+  @@index([userId])
+  @@index([branchId])
 }
 
 // not needed
@@ -1045,6 +1170,8 @@ model Restaurant {
   customDomain Domain[]
   // Primary Admin (Owner)
   adminId String @unique
+
+  
   admin   User   @relation("RestaurantAdmin", fields: [adminId], references: [id])
 
   // Business Info
@@ -1125,26 +1252,78 @@ model RestaurantStaff {
   id        String  @id @default(cuid())
   tenantId  String  // reference to restaurant.tenantId
   userId    String  // reference to user.id
+  roleId    String
+  restaurantId String?
   isActive  Boolean @default(true)
-  role RestaurantStaffRole
 
-  restaurantId String
-  restaurant   Restaurant @relation("RestaurantStaff", fields: [restaurantId], references: [id])
+  customPermissions CustomPermission[]
+
+
+  // relations
+  restaurant   Restaurant? @relation("RestaurantStaff", fields: [restaurantId], references: [id])
+  role      UserRole     @relation(fields: [roleId], references: [id])
   user         User       @relation("RestaurantStaff", fields: [userId], references: [id])
 
-  @@unique([userId, restaurantId])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+ @@unique([userId, roleId, restaurantId])
   @@index([tenantId])
+  @@index([userId])
+  @@index([restaurantId])
+}
+model CustomPermission {
+  id            String   @id @default(cuid())
+  tenantId      String
+  
+  // Link to base RolePermission
+  rolePermissionId String
+  rolePermission   RolePermission @relation(fields: [rolePermissionId], references: [id])
+  
+  // Type of modification
+  modificationType PermissionModificationType
+  
+  // Custom permission details
+  conditions    Json?    // Conditions for the permission
+  metadata      Json?    // Additional metadata
+  
+  // Time constraints
+  validFrom     DateTime?
+  validUntil    DateTime?
+  
+  // Relations
+  restaurantStaffRoleId String?
+  restaurantStaffRole   RestaurantStaff? @relation(fields: [restaurantStaffRoleId], references: [id])
+  
+  branchStaffRoleId     String?
+  branchStaffRole       BranchStaff? @relation(fields: [branchStaffRoleId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String
+  reason        String?
+
+  @@index([tenantId])
+  @@index([rolePermissionId])
 }
 
-enum RestaurantStaffRole {
-  ADMIN
-  SUB_ADMIN
-  STAFF
-  MANAGER
-  MODERATOR
-  RIDER
-
+enum PermissionModificationType {
+  EXTEND      // Add additional capabilities
+  RESTRICT    // Add restrictions to existing permission
+  OVERRIDE    // Complete override of base permission
+  TEMPORARY   // Temporary modification
 }
+
+
+// enum RestaurantStaffRole {
+//   ADMIN
+//   SUB_ADMIN
+//   STAFF
+//   MANAGER
+//   MODERATOR
+//   RIDER
+
+// }
 
 enum restaurantType {
   FAST_FOOD

@@ -1,13 +1,15 @@
 // routes/food.routes.ts
-import { Role } from "@prisma/client";
 import { Router } from "express";
-import { ENUM_USER_ROLE } from "../../../../enums/user";
+import { BranchPermissionNames as BPN, RestaurantPermissionNames as RPN, RRole } from "../../../../types/permission.types";
 import { BranchVariantController } from "../../../branch-variant/branch-variant.controller";
-import { branchAuth } from "../../../middlewares/auth";
 import auth from "../../../middlewares/auth/auth-middleware";
 import branchTenantContextMiddleware from "../../../middlewares/auth/branch-tenantContext-middleware";
+import optionalAuth from "../../../middlewares/auth/optionalAuth-middleware";
+import { accessControl } from "../../../middlewares/auth/permission-middleware";
 import publicTenantContext from "../../../middlewares/auth/public-tenant-context.middleware";
 import { BranchFoodController } from "./branch-food.controller";
+
+
 
 
 
@@ -19,22 +21,48 @@ const branchFoodVariantController = new BranchVariantController();
 // food routes
 router.post(
   "/create",
-  branchAuth([Role.ADMIN, Role.MANAGER, Role.SUPER_ADMIN]),
+ auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions: [
+      RPN.MANAGE_RESTAURANT_BRANCHES,
+      BPN.MANAGE_BRANCH_FOOD,
+    ]
+
+  }),
   branchFoodController.createBranchFood
+
 );
 
 router.patch(
   "/update/:foodId",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions: [
+      RPN.MANAGE_RESTAURANT_BRANCHES,
+      BPN.MANAGE_BRANCH_FOOD,
+    ]
+  }),
   branchFoodController.updateBranchFoodDetails
 );
 
 // get all foods
 router.get("/all", 
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
-  branchTenantContextMiddleware(),
+  optionalAuth(),
+  publicTenantContext(),
+  accessControl({
+    access: 'PUBLIC',
+    allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions: [
+      RPN.MANAGE_RESTAURANT_BRANCHES,
+      BPN.MANAGE_BRANCH_FOOD,
+      BPN.BRANCH_VIEW_FOOD,
+      RPN.VIEW_RESTAURANT_FOOD
+    ]
+  }),
   branchFoodController.getAllFoods);
 
 
@@ -43,36 +71,54 @@ router.get("/main-category",
   branchTenantContextMiddleware(),
   branchFoodController.getBranchFoodByMainCategoryId);
 
+
   // get food by sub category
 router.get("/sub-category",
-  publicTenantContext(),
+  branchTenantContextMiddleware(),
   branchFoodController.getBranchFoodBySubCategoryId);
 
-  // get food by category
-router.get("/sub-category",
-  publicTenantContext(),
-  branchFoodController.getBranchFoodBySubCategoryId);
 
   // get food by category id
 router.get("/category",
-  publicTenantContext(),
+  branchTenantContextMiddleware(),
   branchFoodController.getBranchFoodByCategoryId);
+
 
   // get food by food id
 router.get("/get-one",
   branchTenantContextMiddleware(),
   branchFoodController.getBranchFoodById);
 
+
+
+
 // get all foods by branch id
 router.get("/:branchId/all", 
+  optionalAuth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    access: 'PUBLIC',
+    allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+
+    staffPermissions: [
+      RPN.MANAGE_RESTAURANT_BRANCHES,
+      BPN.MANAGE_BRANCH_FOOD,
+      BPN.BRANCH_VIEW_FOOD,
+      RPN.VIEW_RESTAURANT_FOOD
+    ]
+  }),
   branchFoodController.getAllFoodsbyBranchId);
 
 
 
+
 router.post("/step/variant/create",
-  auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchFoodVariantController.createBranchVariant);
 // router.post(
 //   "/step/addon/create",

@@ -142,6 +142,7 @@ export class BranchAddonValidationService {
     if (!branchAddonIds.every(branchAddon => 
       typeof branchAddon === 'object' && 
       'branchAddonId' in branchAddon && 
+
       typeof branchAddon.branchAddonId === 'string'
     )) {
       throw new ApiError(400, "Invalid branch addon format - each item must have a valid branchAddonId");
@@ -152,9 +153,10 @@ export class BranchAddonValidationService {
       where: {
         id: {
           in: branchAddonIds.map(branchAddon => branchAddon.branchAddonId)
-        }
+        },
       }
     });
+
 
     console.log(result, "result");
 

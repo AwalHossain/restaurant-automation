@@ -43,7 +43,6 @@ router.get("/:adminId/admin",
 
   // Restaurant By Tenant Id
 router.get("/:tenantId/tenant",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
   tenantContextMiddleware(),
   restaurantController.getRestaurantByTenantId);
 

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import catchAsync from "../../../../../shared/catchAsync";
 import sendResponse from "../../../../../shared/sendResponse";
-import { CreatePermissionDto, UpdatePermissionDto } from "../dtos/permission.dto";
+import { CreatePermissionDto } from "../dtos/permission.dto";
 import { PermissionService } from "../services/permission.service";
 
 
@@ -33,10 +33,11 @@ export class PermissionController {
 
 
     getPermissions = catchAsync(async (req: Request, res: Response) => {
-        const { search } = req.query;
+        const { permissionName } = req.query;
         const tenantId = req.tenantContext?.tenantId;
         const permissions = await this.permissionService.getPermissions({
-            search: search as string,
+            search: permissionName as string,
+
             tenantId: tenantId as string
         });
         sendResponse(res, {
@@ -46,6 +47,18 @@ export class PermissionController {
             data: permissions
         });
     })
+
+    getAllPermissions = catchAsync(async (req: Request, res: Response) => {
+        const tenantId = req.tenantContext?.tenantId;
+        const permissions = await this.permissionService.getAllPermissions(tenantId as string);
+        sendResponse(res, {
+            statusCode: httpStatus.OK,
+            success: true,
+            message: "All permissions fetched successfully",
+            data: permissions
+        });
+    });
+
 
     getPermissionById = catchAsync(async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -59,42 +72,5 @@ export class PermissionController {
         });
     })
 
-    updatePermission = catchAsync(async (req: Request, res: Response) => {
-        const { id } = req.params;
-        const input: UpdatePermissionDto = req.body;
-        const tenantId = req.tenantContext?.tenantId;
-        const userId = req.user?.userId;
-        input.tenantId = tenantId as string;
-        input.updatedById = userId as string;
-        const permission = await this.permissionService.updatePermission(id, input);
-        sendResponse(res, {
-            statusCode: httpStatus.OK,
-            success: true,
-            message: "Permission updated successfully",
-            data: permission
-        });
-    })
 
-    deletePermission = catchAsync(async (req: Request, res: Response) => {
-        const { id } = req.params;
-        const tenantId = req.tenantContext?.tenantId;
-        await this.permissionService.deletePermission(id, tenantId as string);
-        sendResponse(res, {
-            statusCode: httpStatus.NO_CONTENT,
-            success: true,
-            message: "Permission deleted successfully"
-        });
-    })
-
-    seedPermissions = catchAsync(async (req: Request, res: Response) => {
-        const tenantId = req.tenantContext?.tenantId;
-        console.log(tenantId, "tenantId");
-        const permissions = await this.permissionService.seedPermissions(tenantId as string);
-        sendResponse(res, {
-            statusCode: httpStatus.OK,
-            success: true,
-            message: "Permissions seeded successfully",
-            data: permissions
-        });
-    })
 } 

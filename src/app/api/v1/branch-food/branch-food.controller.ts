@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { JwtPayload } from "jsonwebtoken";
 import ApiError from "../../../../errors/ApiError";
 import catchAsync from "../../../../shared/catchAsync";
 import sendResponse from "../../../../shared/sendResponse";
 import { BranchFoodService } from "./branch-food.service";
 import { BranchFoodValidationService } from "./branch-food.validation";
-
 export class BranchFoodController {
     private readonly branchFoodService: BranchFoodService
     private readonly branchFoodValidationService: BranchFoodValidationService
@@ -97,7 +97,16 @@ export class BranchFoodController {
   // get all food from all branches
   getAllFoods = catchAsync(async (req: Request, res: Response) => {
     const tenantId = req.tenantContext?.tenantId;
-    const result = await this.branchFoodService.getAllFoods(tenantId as string);
+    const branchId = req.tenantContext?.branchId;
+    const user = {
+      ...req.user,
+      permissions: req.tenantContext?.userPermissions?.allPermissions || [],
+      branchId: branchId as string
+    } as JwtPayload
+    
+    const result = await this.branchFoodService.getAllFoods(tenantId as string, user);
+
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -126,10 +135,8 @@ export class BranchFoodController {
     const tenantId = req.tenantContext?.tenantId;
     const branchId = req.tenantContext?.branchId;
     const restaurantId = req.tenantContext?.restaurantId;
-    if(!tenantId || !restaurantId){
-      throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
-    }
-    const result = await this.branchFoodService.getBranchFoodById(foodId as string, tenantId, branchId as string);
+
+    const result = await this.branchFoodService.getBranchFoodById(foodId as string, tenantId as string, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -139,13 +146,15 @@ export class BranchFoodController {
   });
 
   getBranchFoodByMainCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { branchId, categoryId } = req.query;
+    const { id } = req.query;
     const tenantId = req.tenantContext?.tenantId;
     const restaurantId = req.tenantContext?.restaurantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId || !restaurantId){
       throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
     }
-    const result = await this.branchFoodService.getBranchFoodByMainCategoryId(categoryId as string, tenantId, branchId as string);
+    const result = await this.branchFoodService.getBranchFoodByMainCategoryId(id as string, tenantId, branchId as string);
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -155,13 +164,15 @@ export class BranchFoodController {
   });
 
   getBranchFoodBySubCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { branchId, categoryId } = req.query;
+    const { id } = req.query;
     const tenantId = req.tenantContext?.tenantId;
     const restaurantId = req.tenantContext?.restaurantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId || !restaurantId){
+
       throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
     }
-    const result = await this.branchFoodService.getBranchFoodBySubCategoryId(categoryId as string, tenantId, branchId as string);
+    const result = await this.branchFoodService.getBranchFoodBySubCategoryId(id as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -171,13 +182,14 @@ export class BranchFoodController {
   });
 
   getBranchFoodByCategoryId = catchAsync(async (req: Request, res: Response) => {
-    const { branchId, categoryId } = req.query;
+    const { id} = req.query;
     const tenantId = req.tenantContext?.tenantId;
     const restaurantId = req.tenantContext?.restaurantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId || !restaurantId){
       throw new ApiError(httpStatus.BAD_REQUEST, "Tenant ID or Restaurant ID is required");
     }
-    const result = await this.branchFoodService.getBranchFoodsByCategory(categoryId as string, tenantId, branchId as string);
+    const result = await this.branchFoodService.getBranchFoodsByCategory(id as string, tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,

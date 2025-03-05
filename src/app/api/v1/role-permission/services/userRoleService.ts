@@ -1,6 +1,9 @@
 import { CustomPermission } from "@prisma/client";
 import { prisma } from "../../../../../shared/prisma";
+import { UserRoles } from "../dtos/permission.dto";
 import { RoleService } from "./role.service";
+
+
 
 
 // services/userRoleService.ts
@@ -48,8 +51,15 @@ export class UserRoleService {
     }
   
     // Get user's roles with resolved permissions
-    async getUserRoles(userId: string, tenantId: string) {
- 
+    async getUserRoles(userId: string, tenantId: string): Promise<UserRoles> {
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId, tenantId },
+        include: {
+          restaurantStaff: true,
+          branchStaff: true
+        }
+      });
   
       const [restaurantRoles, branchRoles] = await Promise.all([
         // Get restaurant roles
@@ -84,10 +94,41 @@ export class UserRoleService {
           ]
         }))
       );
+
+      // collect all permissions from both restaurant and branch roles
+      const permission = new Set<string>();
+      resolvedRestaurantRoles.forEach((role) => {
+        role.permissions.forEach((p) => permission.add(p.permission.name));
+      });
+      resolvedBranchRoles.forEach((role) => {
+        role.permissions.forEach((p) => permission.add(p.permission.name));
+      });
+
+
+      // return all permissions
+
+      let allPermissions = Array.from(permission);
+
   
+
+
       return {
-        restaurantRoles: resolvedRestaurantRoles,
-        branchRoles: resolvedBranchRoles
+        id: user?.id as string,
+        username: user?.username as string,
+        email: user?.email as string,
+        phone: user?.phone as string,
+        allPermissions: allPermissions,
+        restaurantRoles: resolvedRestaurantRoles.map((role) => ({
+          restaurantId: role?.restaurantId as string,
+          roleName: role?.roleName
+        })) ,
+        branchRoles: resolvedBranchRoles.map((role) => ({
+          branchId: role?.branchId,
+          roleName: role?.roleName,
+
+        }))
       };
+
+
     }
   }

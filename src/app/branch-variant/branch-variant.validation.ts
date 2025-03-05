@@ -1,19 +1,21 @@
 import httpStatus from 'http-status';
 import ApiError from '../../errors/ApiError';
 import { prisma } from '../../shared/prisma';
-import { CreateVariantInput, createVariantSchema, UpdateVariantInput, updateVariantSchema } from './branch-variant.dto';
+import { CreateBranchVariantInput, createBranchVariantSchema, UpdateBranchVariantInput, updateBranchVariantSchema } from './branch-variant.dto';
 
 
 export class BranchVariantValidationService {
-  async validateCreateVariant(input: CreateVariantInput) {
+  async validateCreateVariant(input: CreateBranchVariantInput) {
     try {
-      await createVariantSchema.parseAsync(input);
+      await createBranchVariantSchema.parseAsync(input);
+
 
       // Check if food exists
       const food = await prisma.branchFood.findUnique({
         where: { id: input.foodId },
-        include: { variants: true }
+        include: { branchVariants: true }
       });
+
 
       console.log(food, "food");
 
@@ -22,7 +24,7 @@ export class BranchVariantValidationService {
       }
 
       // Check for duplicate variant names
-      const existingVariant = food.variants.find(
+      const existingVariant = food.branchVariants.find(
         v => v.name.toLowerCase() === input.name.toLowerCase()
       );
 
@@ -46,16 +48,17 @@ export class BranchVariantValidationService {
     }
   }
 
-  async validateUpdateVariant(input: UpdateVariantInput & { foodId: string }) {
+  async validateUpdateVariant(input: UpdateBranchVariantInput & { foodId: string }) {
     try {
-      await updateVariantSchema.parseAsync(input);
+      await updateBranchVariantSchema.parseAsync(input);
 
       const variant = await prisma.branchFoodVariant.findUnique({
         where: { id: input.id },
         include: {
           branchFood: {
-            include: { variants: true }
+            include: { branchVariants: true }
           }
+
         }
       });
 
@@ -65,9 +68,10 @@ export class BranchVariantValidationService {
 
       // Check for duplicate names if name is being updated
       if (input.name) {
-        const duplicateName = variant.branchFood.variants.find(
+        const duplicateName = variant.branchFood.branchVariants.find(
           v => v.id !== input.id && v.name.toLowerCase() === input?.name?.toLowerCase()
         );
+
 
         if (duplicateName) {
           throw new ApiError(

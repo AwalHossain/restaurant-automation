@@ -1,7 +1,7 @@
 import { Prisma, RoleScope } from "@prisma/client";
 import ApiError from "../../../../../errors/ApiError";
 import { prisma } from "../../../../../shared/prisma";
-import { baseStaffPermissions, branchManagerPermissions, branchModeratorPermissions, restaurantAdminPermissions, riderPermissions } from "../../../../../types/permission.types";
+import { rolePermissions } from "../../../../../types/permission.types";
 import { CreateRoleDto } from "../dtos/role.dto";
 import { validateCircularInheritance } from "./role.validation";
 
@@ -29,7 +29,7 @@ export class RoleService {
     const permissions = await tx.permission.findMany({
         where: {
             name: {
-                in: input.permissionNames
+                in: input.permissionNames as string[]
             }
         }
     });
@@ -122,24 +122,34 @@ export class RoleService {
         
         // create base role first 
 
-        const baseStaffRole = await this.createRole(tx,{
-        name: "BASE_STAFF",
+        const baseRestaurantStaffRole = await this.createRole(tx,{
+        name: "BASE_RESTAURANT_STAFF",
             tenantId,
-            scope: RoleScope.RESTAURANT,
-            permissionNames: baseStaffPermissions,
+            scope: RoleScope.RESTAURANT, 
+            permissionNames: rolePermissions.baseRestaurantStaff,
             description: "Base staff role for a restaurant",
         })
 
+        const baseStaffRole = await this.createRole(tx,{
+        name: "BASE_BRANCH_STAFF",
+            tenantId,
+            scope: RoleScope.BRANCH, 
+            permissionNames: rolePermissions.baseBranchStaff,
+            description: "Base staff role for a branch",
+        })
+
+
         // create other roles inheriting form base 
         const roles = await Promise.all([
-            // Restaurant Sub-Admin
+            // Restaurant Admin
             this.createRole(tx,{
                 name: "RESTAURANT_ADMIN",
                 tenantId,
                 scope: RoleScope.RESTAURANT,
-                permissionNames: restaurantAdminPermissions,
+                permissionNames: rolePermissions.restaurantAdmin,
                 description: "Restaurant admin role for a restaurant",
-                inheritedFromId: baseStaffRole.id
+                inheritedFromId: baseRestaurantStaffRole.id
+
             }),
             
             // Branch Manager
@@ -147,25 +157,28 @@ export class RoleService {
                 name: "BRANCH_MANAGER",
                 tenantId,
                 scope: RoleScope.BRANCH,
-                permissionNames: branchManagerPermissions,
+                permissionNames: rolePermissions.branchManager,
                 description: "Branch manager role for a branch",
-                inheritedFromId: baseStaffRole.id
+                inheritedFromId: baseRestaurantStaffRole.id
+
+
             }),
             // Moderator
             this.createRole(tx,{
                 name: "BRANCH_MODERATOR",
                 tenantId,
                 scope: RoleScope.BRANCH,
-                permissionNames: branchModeratorPermissions,
+                permissionNames: rolePermissions.branchModerator,
                 description: "Branch moderator role for a branch",
                 inheritedFromId: baseStaffRole.id
+
             }),
             // Rider
             this.createRole(tx,{
                 name: "RIDER",
                 tenantId,
                 scope: RoleScope.RESTAURANT,
-                permissionNames: riderPermissions,
+                permissionNames: rolePermissions.rider,
                 description: "Rider role for a restaurant",
                 inheritedFromId: baseStaffRole.id
             })

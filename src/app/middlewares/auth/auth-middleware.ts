@@ -12,6 +12,7 @@ const auth =
     try {
       //get authorization token
       const authHeader = req.headers.authorization;
+      console.log(authHeader, 'authHeader');
       if (!authHeader) {
         throw new ApiError(httpStatus.UNAUTHORIZED, 'You are not authorized');
       }
@@ -32,9 +33,9 @@ const auth =
       verifiedUser = jwtHelpers.verifyToken(token, env.JWT_SECRET as Secret);
       console.log(verifiedUser, 'verifiedUser');
       req.user = verifiedUser as JwtPayload; // role  , userid
-      console.log(req.user, 'req.user', verifiedUser);  
+      console.log(requiredRoles, 'requiredRoles', verifiedUser);  
       // role diye guard korar jnno
-      if (requiredRoles.length && !requiredRoles.includes(verifiedUser.role)) {
+      if (requiredRoles.length > 0 && !requiredRoles.includes(verifiedUser.role)) {
         throw new ApiError(httpStatus.FORBIDDEN, 'Forbidden');
       }
       next();

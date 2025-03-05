@@ -1,40 +1,73 @@
-import { Role } from '@prisma/client';
 import express from 'express';
+import { BranchPermissionNames as BPN, RestaurantPermissionNames as RPN, RRole } from '../../../../../types/permission.types';
 import auth from '../../../../middlewares/auth/auth-middleware';
+import { accessControl } from '../../../../middlewares/auth/permission-middleware';
 import tenantContextMiddleware from '../../../../middlewares/auth/tenant-context.middleware';
+import { AssignRoleController } from '../controllers/assignRole.controller';
 import { RoleController } from '../controllers/role.controller';
 
 const router = express.Router();
 const roleController = new RoleController();
+const assignRoleController = new AssignRoleController();
 
 router.post('/', 
-    auth(Role.SUPER_ADMIN, Role.ADMIN),
+    auth(),
     tenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_USERS,
+        ]
+
+    }),
+
     roleController.createRole
 );
 
 router.get('/', 
-    auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER),
+    auth(),
     tenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            BPN.MANAGE_BRANCH_USERS,
+            RPN.MANAGE_RESTAURANT_USERS,
+
+        ]
+    }),
     roleController.getAllRoles
 );
 
 router.get('/all-with-permissions', 
-    auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER),
+    auth(),
     tenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            BPN.MANAGE_BRANCH_USERS,
+            RPN.MANAGE_RESTAURANT_USERS,
+        ]
+    }),
     roleController.getAllRolesWithPermissions
+
 );
 
-router.get('/:id/permissions', 
-    auth(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER),
+
+// router.post('/default', 
+//     auth(Role.SUPER_ADMIN, Role.ADMIN),
+//     tenantContextMiddleware(),
+//     roleController.createDefaultRoles
+// );
+
+router.get('/:id/get-my-roles', 
+    auth(),
     tenantContextMiddleware(),
-    roleController.getAllPermissions
+    accessControl({
+        access: RRole.ALL
+ }),
+    assignRoleController.getUserRoles
 );
 
-router.post('/default', 
-    auth(Role.SUPER_ADMIN, Role.ADMIN),
-    tenantContextMiddleware(),
-    roleController.createDefaultRoles
-);
+
 
 export const RoleRoutes = router; 

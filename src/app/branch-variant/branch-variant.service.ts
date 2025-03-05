@@ -120,7 +120,7 @@ export class BranchVariantService {
         branchId
       },
       include: {
-        variants: true
+        branchVariants: true
       }
     });
 

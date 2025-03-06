@@ -62,16 +62,13 @@ export class BranchVariantController {
   createBranchVariant = catchAsync(async (req: Request, res: Response) => {
     const foodId = req.body.foodId;
     const payload = req.body.variants;
-    const tenantId = req.tenantContext?.tenantId;
-    const branchId = req.tenantContext?.branchId;
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
     const userId = req.user?.userId;
 
     console.log(tenantId, branchId, userId, "tenantId, branchId, userId");
-    
-    if(!tenantId || !userId){
-      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant or user not found");
-    }
-    const result = await this.branchVariantService.addNewBranchVariant(foodId, tenantId, branchId as string, payload);
+
+    const result = await this.branchVariantService.addNewBranchVariant(foodId, tenantId, branchId, payload);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

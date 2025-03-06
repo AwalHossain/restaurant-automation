@@ -1,15 +1,16 @@
 import { z } from "zod";
 
-export type CreateVariantInput = {
+export type CreateBranchVariantInput = {
   name: string;
   basePrice: number;
   isActive?: boolean;
   isRequired?: boolean;
   foodId: string;
   tenantId: string;
+
 };
 
-export type UpdateVariantInput = {
+export type UpdateBranchVariantInput = {
   id: string;
   variantId: string;
   name?: string;
@@ -18,7 +19,7 @@ export type UpdateVariantInput = {
   isRequired?: boolean;
 };
 
-export type VariantResponse = {
+export type BranchVariantResponse = {
   id: string;
   name: string;
   basePrice: number;
@@ -30,7 +31,7 @@ export type VariantResponse = {
 };
 
 // Zod schema for validation
-export const createVariantSchema = z.object({
+export const createBranchVariantSchema = z.object({
   name: z.string().min(2, "Variant name must be at least 2 characters"),
   basePrice: z.number().min(0, "Price cannot be negative"),
   isActive: z.boolean().optional().default(true),
@@ -38,6 +39,7 @@ export const createVariantSchema = z.object({
   foodId: z.string().cuid("Invalid food ID")
 });
 
-export const updateVariantSchema = createVariantSchema.partial().extend({
+
+export const updateBranchVariantSchema = createBranchVariantSchema.partial().extend({
   id: z.string().cuid("Invalid variant ID")
 });

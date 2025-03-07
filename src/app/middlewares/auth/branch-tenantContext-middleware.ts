@@ -1,76 +1,90 @@
-import { BranchStaffRole, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiError";
-import { StaffRole } from "../../../types/permission";
 import { DomainService } from "../../Domainservices/domain.service";
 
 interface TenantContext {
   tenantId: string;
   restaurantId: string;
   branchId: string;
-  restaurantStaffRole: StaffRole;
-  branchStaffRole: BranchStaffRole;
 }
-
 
 const branchTenantContextMiddleware = () => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
             const user = req.user;
-            
-            // Priority order for branch ID resolution:
-            // 1. Headers (always available as fallback)
-            const headerBranchId = req.headers['branch-id'] as string;
-            
-            // 2. URL params (for specific branch operations)
-            const paramBranchId = req.params.branchId;
-            
-            // 3. Request body (for branch-specific POST/PUT operations)
-            const bodyBranchId = req.body.branchId;
-            
-            // 4. User context (from JWT/session)
-            const userBranchId = user?.branchId;
+            let tenantId: string | null = null;
+            let restaurantId: string | null = null;
+            let branchId: string | null = null;
+            console.log(req.user, 'req.user');
+            // Priority order for IDs:
+            // 1. User context
+            // 2. Query params
+            // 3. URL params
+            // 4. Headers
+            // 5. Domain resolution
 
-            // Resolve branchId using priority order
-            const branchId = paramBranchId || bodyBranchId || userBranchId || headerBranchId;
+            tenantId = user?.tenantId || 
+                      (req.query.tenantId as string) || 
+                      (req.params.tenantId as string) ||
+                      (req.headers["tenant-id"] as string) ||
+                      null;
 
-            // Resolve tenant context
-            let tenantId: string | null = user?.tenantId || req.headers["tenant-id"] as string;
-            let restaurantId: string | null = user?.restaurantId || req.headers["restaurant-id"] as string;
+            restaurantId = user?.restaurantId || (user?.location?.type === "RESTAURANT" ? user?.location?.id : null) ||
+                          (req.query.restaurantId as string) || 
+                          (req.params.restaurantId as string) ||
+                          (req.headers["restaurant-id"] as string) ||
+                          null;
 
-            // Resolve tenant from domain if not found
+
+            branchId = user?.branchId || 
+                      (user?.location?.type === "BRANCH" ? user?.location?.id : null) ||
+                      (req.params.branchId as string) ||
+                      (req.body.branchId as string) ||
+                      (req.headers["branch-id"] as string) ||
+                      null;
+
+               
+
+
+
+            console.log(branchId, 'branchId');
+            // Resolve from domain if needed
+
             if (!tenantId) {
-                const hostname = req.hostname;
-                const domain = await new DomainService().resolveTenantId(hostname);
+                const domain = await new DomainService().resolveTenantId(req.hostname);
                 tenantId = domain.tenantId;
-                restaurantId = domain.restaurantId;
+                if (!restaurantId) {
+                    restaurantId = domain.restaurantId;
+                }
             }
 
-            // Validation checks
-            if (!tenantId) {
-                throw new ApiError(httpStatus.BAD_REQUEST, 'Unable to resolve tenant');
-            }
+                // Validations
+                if (!tenantId) {
+                    throw new ApiError(httpStatus.BAD_REQUEST, 'Unable to resolve tenant');
+                }
+    
+                if (!branchId) {
+                    throw new ApiError(httpStatus.FORBIDDEN, "Branch Access Denied");
+                }
 
-            // Special handling for super admin
+            // Super admin check
             if (user?.role === Role.SUPER_ADMIN) {
                 req.tenantContext = {
-                    tenantId,
-                    restaurantId,
-                    branchId: headerBranchId // Always use header branch-id for super admin
+                    tenantId: tenantId ?? null,
+                    restaurantId: restaurantId ?? null,
+                    branchId: req.headers["branch-id"] as string ?? null
                 };
                 return next();
             }
 
-            // Regular user must have a branch ID
-            if (!branchId) {
-                throw new ApiError(httpStatus.FORBIDDEN, "Branch Access Denied");
-            }
 
-            // Set tenant context
+
+            // Set context
             req.tenantContext = {
                 tenantId,
-                restaurantId,
+                restaurantId: restaurantId ?? undefined,
                 branchId
             };
 

@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 import { BranchStaffRole, Role, StaffRole } from '@prisma/client';
 import { JwtPayload } from 'jsonwebtoken';
+import { UserRoles } from '../api/v1/role-permission/dtos/permission.dto';
+interface Location {
+  type: 'RESTAURANT' | 'BRANCH';
+  id: string;
+  role: string;
+}
 
 
 export interface TenantContext {
@@ -10,6 +16,7 @@ export interface TenantContext {
   isSuperAdmin?: boolean;
   restaurantStaffRole?: StaffRole;
   branchStaffRole?: BranchStaffRole;
+  userPermissions?: UserRoles;
 }
 
 
@@ -29,6 +36,7 @@ declare module 'jsonwebtoken' {
     role: Role;
     tenantId?: string;
     restaurantId?: string;
+    location?: Location;
     branchId?: string;
     isSuperAdmin?: boolean;
     restaurantStaffRole?: StaffRole;

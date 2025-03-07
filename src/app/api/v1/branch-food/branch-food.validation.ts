@@ -81,7 +81,7 @@ export class BranchFoodValidationService {
         }
     
         // Validate categories exist
-        const categories = await prisma.category.findMany({
+        const categories = await prisma.branchCategory.findMany({
           where: { id: { in: input?.categoryIds } }
         });
         if (categories.length !== input?.categoryIds?.length) {
@@ -140,10 +140,11 @@ export class BranchFoodValidationService {
     
       async validateUpdateFoodInput(input: CreateBranchFoodInput) {
         // Validate food exists
-        const existingFood = await prisma.food.findUnique({
+        const existingFood = await prisma.branchFood.findUnique({
           where: { id: input.id }
         });
     
+
         if (!existingFood) {
           throw new ApiError(httpStatus.NOT_FOUND, "Food item not found");
         }
@@ -174,7 +175,7 @@ export class BranchFoodValidationService {
       }
     
       // Validate the remaining category IDs exist in database
-      const categories = await prisma.category.findMany({
+      const categories = await prisma.branchCategory.findMany({
         where: { id: { in: validCategoryIds } }
       });
       

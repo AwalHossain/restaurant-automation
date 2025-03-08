@@ -9,37 +9,49 @@ const publicTenantContext = () => {
             const user = req.user;
             let tenantId: string | null = null;
             let restaurantId: string | null = null;
-            tenantId = user?.tenantId ?? null;
-            restaurantId = user?.restaurantId ?? null;
-            let branchId: string | null = user?.branchId ?? null;
-            branchId = req.params.branchId || req.body.branchId || req.headers['branch-id'];
-    
-            
-            if(!tenantId || !restaurantId){
-                console.log(req.headers, "req.headers");
-                tenantId = req.headers["tenant-id"] as string;
-                restaurantId = req.headers["restaurant-id"] as string;
+            let branchId: string | null = null;
+  
+            // Priority order for tenantId:
+            // 1. User context
+            // 2. Query params
+            // 3. URL params
+            // 4. Headers
+            // 5. Domain resolution
+            tenantId = user?.tenantId || 
+                      (req.query.tenantId as string) || 
+                      (req.params.tenantId as string) ||
+                      (req.headers["tenant-id"] as string) ||
+                      null;
+  
+            // Similar priority for restaurantId
+            restaurantId = user?.restaurantId || (user?.location?.type === "RESTAURANT" ? user?.location?.id : null) ||
+                            (req.query.restaurantId as string) || 
+                            (req.params.restaurantId as string) ||
+                            (req.headers["restaurant-id"] as string) ||
+                            null;
+  
+            branchId = user?.branchId || 
+                        (user?.location?.type === "BRANCH" ? user?.location?.id : null) ||
+                        (req.params.branchId as string) ||
+                        (req.body.branchId as string) ||
+                        (req.headers["branch-id"] as string) ||
+                        null;
+            // Only resolve from hostname if we still don't have a tenantId
+            if (!tenantId) {
+                const hostname = req.hostname;
+                const domain = await new DomainService().resolveTenantId(hostname);
+                tenantId = domain.tenantId;
+                // Only set restaurantId from domain if we don't already have one
+                if (!restaurantId) {
+                    restaurantId = domain.restaurantId;
+                }
             }
-            console.log(tenantId, "tenantId");
-    
-    
-    
-    
-    
-                  // 2. If no tenant ID in headers, resolve from hostname
-          if (!tenantId) {
-            const hostname = req.hostname;
-            const domain = await new DomainService().resolveTenantId(hostname)
-            
-            if(domain){
-                tenantId = domain.tenantId ?? null;
-                restaurantId = domain.restaurantId ?? null;
-            }
-          }
 
             if (!tenantId) {
-                throw new ApiError(httpStatus.BAD_REQUEST, 'Unable to resolve tenant');
+                throw new ApiError(httpStatus.BAD_REQUEST, `Unable to resolve tenantId`);
             }
+
+
 
             req.tenantContext = {
                 tenantId,
@@ -47,22 +59,6 @@ const publicTenantContext = () => {
                 branchId
             };
 
-            // If branch ID is provided, validate it belongs to the restaurant
-            // if (branchId) {
-            //     const branch = await prisma.branch.findFirst({
-            //         where: {
-            //             id: branchId,
-            //             restaurantId: restaurantId,
-            //             isActive: true
-            //         }
-            //     });
-
-            //     if (!branch) {
-            //         throw new ApiError(httpStatus.NOT_FOUND, 'Branch not found');
-            //     }
-
-            //     req.tenantContext.branchId = branch.id;
-            // }
 
             next();
         } catch (error) {

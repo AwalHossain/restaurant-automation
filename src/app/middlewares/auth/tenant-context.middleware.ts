@@ -2,149 +2,164 @@ import { Role } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiError";
+import { CacheService } from "../../../shared/cache/cache.service";
 import { prisma } from "../../../shared/prisma";
 import { StaffRole } from "../../../types/permission";
-import { BranchStaffRole } from "../../../types/permission.types";
 import { DomainService } from "../../Domainservices/domain.service";
+import { UserRoles } from "../../api/v1/role-permission/dtos/permission.dto";
+import { UserRoleService } from "../../api/v1/role-permission/services/userRoleService";
+;
 
 interface TenantContext {
   tenantId: string;
   restaurantId: string;
   branchId: string;
   restaurantStaffRole: StaffRole;
-  branchStaffRole: typeof BranchStaffRole;
+  // branchStaffRole: typeof BranchStaffRole;
 }
 
 
 const tenantContextMiddleware = () => {
+  const cacheService = CacheService.getInstance();
+  const userRoleService = new UserRoleService();
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-        const user = req.user;
-        let tenantId: string | null = null;
-        let restaurantId: string | null = null;
-        tenantId = user?.tenantId ?? null;
-        restaurantId = user?.restaurantId ?? null;
-        let branchId: string | null = user?.branchId ?? null;
+          const user = req.user;
+          let tenantId: string | null = null;
+          let restaurantId: string | null = null;
+          let branchId: string | null = null;
 
-        console.log(req.user, "req.user", user?.tenantId, "tenantId", tenantId);
-        
-        if(!tenantId){
-            console.log(req.headers, "req.headers");
-            tenantId = req.headers["tenant-id"] as string;
-            restaurantId = req.headers["restaurant-id"] as string;
-        }
+          // Priority order for tenantId:
+          // 1. User context
+          // 2. Query params
+          // 3. URL params
+          // 4. Headers
+          // 5. Domain resolution
+          tenantId = user?.tenantId || 
+                    (req.query.tenantId as string) || 
+                    (req.params.tenantId as string) ||
+                    (req.headers["tenant-id"] as string) ||
+                    null;
 
-              // 2. If no tenant ID in headers, resolve from hostname
-      if (!tenantId) {
-        const hostname = req.hostname;
-        const domain = await new DomainService().resolveTenantId(hostname);
-        tenantId = domain.tenantId;
-        restaurantId = domain.restaurantId;
+          // Similar priority for restaurantId
+          restaurantId = user?.restaurantId || (user?.location?.type === "RESTAURANT" ? user?.location?.id : null) ||
+          (req.query.restaurantId as string) || 
+          (req.params.restaurantId as string) ||
+          (req.headers["restaurant-id"] as string) ||
+          null;
+
+          branchId = user?.branchId || 
+          (user?.location?.type === "BRANCH" ? user?.location?.id : null) ||
+          (req.params.branchId as string) ||
+          (req.body.branchId as string) ||
+          (req.headers["branch-id"] as string) ||
+          null;
+          // Only resolve from hostname if we still don't have a tenantId
+          if (!tenantId) {
+              const hostname = req.hostname;
+              const domain = await new DomainService().resolveTenantId(hostname);
+              tenantId = domain.tenantId;
+              // Only set restaurantId from domain if we don't already have one
+              if (!restaurantId) {
+                  restaurantId = domain.restaurantId;
+              }
+          }
+
+        // Tenant validation
+         if (!tenantId || !restaurantId) {
+             throw new ApiError(httpStatus.BAD_REQUEST, `Unable to resolve ${!tenantId ? "tenantId" : ""} ${!restaurantId ? "restaurantId" : ""} `);
+         }
+
+          // Super admin check
+          if (user?.role === Role.SUPER_ADMIN) {
+              req.tenantContext = {
+                  tenantId: tenantId ?? null,
+                  restaurantId: restaurantId ?? null
+              }
+              return next();
+          }
+
+          const userPermissionCacheKey = cacheService.generateKey([
+            'permissions',
+            user?.tenantId as string
+          ]);
+
+          
+
+          const CACHE_TTL = 5;
+          let userPermissions = await cacheService.get(userPermissionCacheKey);
+
+          if(!userPermissions){
+            userPermissions = await userRoleService.getUserRoles(user?.userId as string, tenantId) as UserRoles;
+            await cacheService.set(userPermissionCacheKey, userPermissions, CACHE_TTL);
+          }
+
+
+
+
+    //  cache the tenant access
+    const tenantAccessCacheKey = `tenant-access-${tenantId}`;
+    const cacheTTL = 60 * 60 * 24; // 24 hours
+
+    let tenantAccess = await cacheService.get(tenantAccessCacheKey);
+
+
+
+
+
+     // Validate tenant access
+    if(!tenantAccess ){
+
+    tenantAccess = await prisma.user.findFirst({
+      where: {
+          id: user?.userId,
+          tenantId,
+          isActive: true,
+          OR: [
+              // Restaurant admin/staff check
+              { restaurantStaff: { some: { 
+                  tenantId,
+                  isActive: true 
+              }}},
+              // Branch staff check
+              { branchStaff: { some: { 
+                  branch: { 
+                    tenantId,
+                   },
+                  isActive: true 
+              }}}
+          ]
+      },
+      include: {
+          restaurantStaff: true,
+          branchStaff: true
       }
-      if(user?.role === Role.SUPER_ADMIN) {
-        req.tenantContext = {
-            tenantId: tenantId ?? null,
-            restaurantId: restaurantId ?? null
-        }
+  });
 
-        return next();
-    }
+  await cacheService.set(tenantAccessCacheKey, tenantAccess, cacheTTL);
 
-      if (!tenantId) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Unable to resolve tenant');
-      }
+}
 
 
-console.log(req.tenantContext, "tenantId",tenantId);
-
-    if(!tenantId){
-        return next(new ApiError(httpStatus.BAD_REQUEST, "Unauthorized Access"));
-    }
-
+    // console.log(restaurant, "restaurant");
+    if (!tenantAccess) {
+      throw new ApiError(httpStatus.FORBIDDEN, "No access to this tenant/restaurant");
+  }
 
 
-    //  get restaurant context
-    const restaurant = await prisma.restaurant.findFirst({
-        where: {
-            OR: [
-                {
-                    adminId: user?.userId,
-                    tenantId: user?.tenantId
-                },
-                {
-                    branches: {
-                        some: {
-                            branchStaff: {
-                                some: {
-                                    userId: user?.userId,
-                                    tenantId: tenantId,
-                                    isActive: true
-                                }
-                            }
-                        }
-                    }
-                }
-            ],
-            isActive: true
-        },
-        include: {
-            branches: {
-                where:{
-                    branchStaff:{
-                        some:{
-                            userId: user?.userId,
-                            isActive: true
-                        }
-                    }
-                }
-            },
-            restaurantStaff:{
-                where:{
-                    userId: user?.userId,
-                    isActive: true
-                }
-            }
-        }
-    });
-
-    console.log(restaurant, "restaurant");
-    if(!restaurant){
-        return next(new ApiError(httpStatus.UNAUTHORIZED, "No restaurant found"));
-    }
 
     // set tenant context
-    req.tenantContext = {
-        tenantId,
-        restaurantId: restaurant.id,
-        restaurantStaffRole: restaurant.restaurantStaff[0]
-    }
+         // Set tenant context
+         req.tenantContext = {
+          tenantId,
+          restaurantId,
+          branchId,
+          restaurantStaffRole: userPermissions.restaurantStaffRole,
+          branchStaffRole: userPermissions.branchStaffRole,
+          userPermissions
+      }
     console.log(req.tenantContext, "req.tenantContext", req.params.branchId);
 
-
-    // if(branchId){
-    // const branch = await prisma.branch.findUnique  ({
-    //     where:{
-    //         id: branchId
-    //     },
-    //     include: {
-    //         branchStaff: true
-    //     }
-    // })
-    // if(branch){
-    //       // Remove redundant check
-    // // const branchStaffRole = 
-
-    //     console.log(branch, "branch.branchStaff[0].role");
-
-    //     req.tenantContext.branchId = branch.id;
-    //     req.tenantContext.branchStaffRole = branch.branchStaff[0]?.role as BranchStaffRole || undefined; 
-    // } else {
-    //     throw new ApiError(httpStatus.FORBIDDEN, "Branch Access Denied");
-    // }
-
-    // console.log(req.tenantContext, "Inside tenant context", branch);
-
-    // }
 
     next();
     } catch (error) {

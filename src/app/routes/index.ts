@@ -1,6 +1,7 @@
 import express from "express";
 import { AdminAuthRoutes } from "../api/v1/authentication/routes/auth.routes";
 import { BranchAddonRoutes } from "../api/v1/branch-addon/branch-addon.route";
+import { BranchCategoryRoutes } from "../api/v1/branch-category/category.routes";
 import { BranchFoodRoutes } from "../api/v1/branch-food/branch-food.route";
 import { BranchStaffRoutes } from "../api/v1/branch-staff/routes/branch-staff.routes";
 import { branchRoutes } from "../api/v1/branch/routes/branch.route";
@@ -13,6 +14,7 @@ import { FoodRoutes } from "../api/v1/food/routes/food.routes";
 import { VariantRoutes } from "../api/v1/food/routes/variant.routes";
 import { PromotionRoutes } from "../api/v1/promotion/routes/promotion.routes";
 import { RestaurantRoutes } from "../api/v1/restaurant/routes/restaurant.routes";
+import { assignRoleRoutes } from "../api/v1/role-permission/routes/assignRole.routes";
 import { PermissionRoutes } from "../api/v1/role-permission/routes/permission.routes";
 import { RoleRoutes } from "../api/v1/role-permission/routes/role.routes";
 
@@ -45,6 +47,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/category",
     route: CategoryRoutes
+  },
+  {
+    path: "/branch-category",
+    route: BranchCategoryRoutes
   },
   {
     path: "/addon",
@@ -89,6 +95,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: "/role",
     route: RoleRoutes
+  },
+  {
+    path: "/assign-role",
+    route: assignRoleRoutes
   },
   // Add more routes as needed
 ];

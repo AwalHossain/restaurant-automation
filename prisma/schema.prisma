@@ -68,6 +68,10 @@ model User {
   restaurantStaff RestaurantStaff[] @relation("RestaurantStaff")
   createdAddons Addon[] @relation("AddonCreator") // Changed from Addon
   updatedAddons Addon[] @relation("AddonUpdater") // Changed from Addon
+  createdBranchAddon BranchAddon[] @relation("BranchAddonCreator")
+  updatedBranchAddon BranchAddon[] @relation("BranchAddonUpdater")
+  deletedBranchAddon BranchAddon[] @relation("BranchAddonDeleter")
+  
   userLoginSession UserLoginSession[]
 
   // createdAddonGroups AddonGroup[] @relation("AddonGroupCreator")
@@ -329,7 +333,7 @@ model Branch {
   checkouts              Checkout[]
   branchStaff            BranchStaff[]
   branchOverrides BranchOverrides[]
-
+  branchCategories BranchCategory[]
   @@index([tenantId])
   @@index([restaurantId])
 }
@@ -443,9 +447,29 @@ model Category {
   isActive    Boolean    @default(true)
 
   // relation
-
-
   @@index([tenantId])
+}
+model BranchCategory {
+  id          String     @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  parentId    String? // For subcategories
+  parent      BranchCategory?  @relation("SubCategories", fields: [parentId], references: [id])
+  children    BranchCategory[] @relation("SubCategories")
+  branchFoods BranchFood[]
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdBy   String?
+  updatedBy   String?
+  isActive    Boolean    @default(true)
+
+  // relation
+  @@index([tenantId])
+  @@index([tenantId, branchId, isActive])
+  @@index([parentId]) // For hierarchical queries
 }
 
 model Food {
@@ -586,7 +610,8 @@ model BranchFood {
   foodId      String?
   food        Food?     @relation(fields: [foodId], references: [id])
   categories  Category[]
-  variants    BranchFoodVariant[]
+  branchCategories BranchCategory[]
+  branchVariants    BranchFoodVariant[]
   branchAddons      BranchFoodAddon[]
 
   priceHistory  PriceHistory[]
@@ -603,6 +628,7 @@ model BranchFood {
   @@unique([tenantId, branchId, foodId])
   @@unique([tenantId, branchId, id])
   @@index([tenantId])
+  @@index([tenantId, branchId])
   @@index([branchId])
   @@index([isActive, isPopular])
   @@index([isActive, isRecommended])
@@ -676,6 +702,7 @@ model BranchFoodAddon {
   id              String   @id @default(cuid())
   tenantId        String
   branchFoodId    String
+  branchId        String
 
 
   // Addon specific settings
@@ -689,7 +716,7 @@ model BranchFoodAddon {
   
   // Relations
   addonId         String?
-  branchAddonId   String?
+  branchAddonId   String
   addon           Addon? @relation(fields: [addonId], references: [id])
   branchAddon     BranchAddon? @relation(fields: [branchAddonId], references: [id])
   branchFood      BranchFood @relation(fields: [branchFoodId], references: [id], onDelete: Cascade)
@@ -704,9 +731,10 @@ model BranchFoodAddon {
 
 // ... existing code ...
 
-@@unique([tenantId, branchFoodId, addonId])
+@@unique([ tenantId, branchId, branchFoodId, branchAddonId])
 @@index([tenantId])
-@@index([tenantId, branchFoodId])
+@@index([branchId])
+@@index([tenantId, branchId])
 }
 
 
@@ -1002,6 +1030,17 @@ model BranchAddon {
   addon           Addon?    @relation(fields: [addonId], references: [id])
    
   branchFoodAddons BranchFoodAddon[]
+
+
+  createdBy      User             @relation("BranchAddonCreator", fields: [createdById], references: [id])
+  createdById    String
+  updatedBy      User             @relation("BranchAddonUpdater", fields: [updatedById], references: [id])
+  updatedById    String
+  deletedBy      User?            @relation("BranchAddonDeleter", fields: [deletedById], references: [id])
+  deletedById    String?
+  deletedAt      DateTime?
+
+  
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

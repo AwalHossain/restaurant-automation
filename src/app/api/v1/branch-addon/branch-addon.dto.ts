@@ -18,6 +18,8 @@ export interface CreateBranchAddonInput {
   isAvailable?: boolean;
   stockStatus?: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   overrideNotes?: string;
+  createdById?: string;
+  updatedById?: string;
 }
 
 // DTO for updating an Addon

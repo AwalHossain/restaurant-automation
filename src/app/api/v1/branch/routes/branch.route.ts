@@ -1,92 +1,145 @@
-
-
-
-
-
-import { Role } from '@prisma/client';
 import express from 'express';
-import { ENUM_USER_ROLE } from '../../../../../enums/user';
+import { BranchPermissionNames as BPN, RestaurantPermissionNames as RPN, RRole } from '../../../../../types/permission.types';
 import auth from '../../../../middlewares/auth/auth-middleware';
-import { branchAuth } from '../../../../middlewares/auth/branch-auth-middleware';
 import branchTenantContextMiddleware from '../../../../middlewares/auth/branch-tenantContext-middleware';
+import { accessControl } from '../../../../middlewares/auth/permission-middleware';
+import tenantContextMiddleware from '../../../../middlewares/auth/tenant-context.middleware';
 import { BranchController } from '../controller/branch.controller';
-
 
 const router = express.Router();
 const branchController = new BranchController();
 
+
+
+
 router.post(
     '/create',
-    auth(
-        ENUM_USER_ROLE.SUPER_ADMIN,
-        ENUM_USER_ROLE.ADMIN
-    ),
-    branchTenantContextMiddleware(),
+    auth(),
+    tenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+        ]
+    }),
     branchController.createBranch
 );
+
+
 
 // Basic Info
 router.patch(
     '/:branchId/update-basic-info',
-    branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+            BPN.MANAGE_BRANCH_SETTINGS,
+        ]
+    }),
     branchController.updateBranchBasicInfo
 );
+
 
 // Business Hours
 router.patch(
     '/:branchId/update-business-hours',
-    branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+            BPN.MANAGE_BRANCH_SETTINGS,
+        ]
+    }),
     branchController.updateBranchBusinessHours
+
 );
 
 // Delivery Settings
 router.patch(
     '/:branchId/update-delivery-settings',
-    branchAuth([Role.ADMIN, Role.MANAGER, Role.MODERATOR]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+            BPN.MANAGE_BRANCH_SETTINGS,
+        ]
+    }),
     branchController.updateBranchDeliverySettings
 );
 
 router.get(
     '/get-all',
-    auth(Role.SUPER_ADMIN, Role.ADMIN),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+        ]
+    }),
     branchController.getAllBranch
 );
 
 
 router.get(
     '/:branchId/branch-details',
-    branchAuth([Role.MODERATOR, Role.MANAGER]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+            BPN.MANAGE_BRANCH_SETTINGS,
+        ]
+    }),
     branchController.getBranchById
+
 );
 
 router.patch(
     '/:branchId/update-status',
-    branchAuth([Role.MANAGER]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+        ]
+    }),
     branchController.updateBranchStatus
+
 );  
 
 router.delete(
     '/:branchId/delete',
-    branchAuth([Role.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+        ]
+    }),
     branchController.deleteBranch
 );
 
 router.get(
     '/get-all-active',
-    auth(
-        ENUM_USER_ROLE.SUPER_ADMIN,
-        ENUM_USER_ROLE.ADMIN,
-        ENUM_USER_ROLE.MODERATOR,
-        ENUM_USER_ROLE.MANAGER
-    ),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+        allowedRoles: [RRole.RESTAURANT_ADMIN],
+        staffPermissions: [
+            RPN.MANAGE_RESTAURANT_BRANCHES,
+        ]
+    }),
     branchController.getAllActiveBranch
 );
 

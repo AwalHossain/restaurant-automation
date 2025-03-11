@@ -145,7 +145,7 @@ export class BranchValidationService {
 
   async validateUpdateBranchDeliverySettings(input: any) {
     const validatedData = this.createBranchSchema.partial().parse(input);
-    try {
+
      // Check if restaurant exists
      const branch = await prisma.branch.findUnique({
       where: { id: input.branchId }
@@ -153,16 +153,6 @@ export class BranchValidationService {
 
     if (!branch) {
       throw new ApiError(httpStatus.NOT_FOUND, "Branch not found");
-    }
-
-
-    return validatedData;
-
-
-
-
-    } catch (error) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Validation failed");
     }
    
     return validatedData;

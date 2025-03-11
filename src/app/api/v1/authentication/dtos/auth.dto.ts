@@ -136,12 +136,15 @@ type RestaurantStaffRecord = {
 export type BranchStaffRecord = {
   roleId: string;
   branchId: string;
+  restaurantId?: string;
   role?: {
     name: string;
     // ... other role properties
   };
   branch: {
-    // ... branch properties
+    restaurant:{
+      id: string;
+    }
   };
 } | null; 
 
@@ -153,6 +156,7 @@ interface ActiveSession {
   deviceId: string;
   roleId: string;
   location: {
+    role: string;
     type: 'RESTAURANT' | 'BRANCH' | 'ADMIN_BRANCH';
     id: string;
   };
@@ -162,6 +166,7 @@ interface ActiveSession {
 interface LastSelectedRole {
   roleId: string;
   location: {
+    role: string;
     type: 'RESTAURANT' | 'BRANCH';
     id: string;
   };

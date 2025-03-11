@@ -21,6 +21,8 @@ app.use(
       "Authorization", "Cookie",
       "branch-id",
       "restaurant-id",
+      "role-option",
+      "device-id",
       "tenant-id",
       "user-id",
     ]

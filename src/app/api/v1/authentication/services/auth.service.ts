@@ -4,7 +4,7 @@ import { JwtUtils } from "../../../../../helpers/jwt.helper";
 import { generateOTP } from "../../../../../helpers/otp.helper";
 import { comparePassword, hashPassword } from "../../../../../helpers/password.helper";
 import { prisma } from "../../../../../shared/prisma";
-import { ActiveSession, LastSelectedRole, LoginUserInput, RegisterUserInput, RestaurantStaffRecord, StaffRecord, StaffRegisterInput, SuperAdminRegisterInput, UnifiedLoginInput, UserWithRoles } from "../dtos/auth.dto";
+import { ActiveSession, BranchStaffRecord, LastSelectedRole, LoginUserInput, RegisterUserInput, RestaurantStaffRecord, StaffRecord, StaffRegisterInput, SuperAdminRegisterInput, UnifiedLoginInput, UserWithRoles } from "../dtos/auth.dto";
 
 
 
@@ -506,13 +506,15 @@ export class AuthService {
         tenantId: user.tenantId ?? '',
       }
     })
+    let restaurantId = user.restaurantStaff[0]?.restaurantId ? user.restaurantStaff[0]?.restaurantId : user.branchStaff[0]?.branch?.restaurantId
+
     
     // token
     const payload = {
       userId: user.id,
       role: user.role,
       tenantId: user.tenantId ?? '',
-      restaurantId: user.restaurantStaff[0]?.restaurantId ?? null,
+      restaurantId: restaurantId
     }
 
     const accessToken = JwtUtils.generateAccessToken(payload);
@@ -638,7 +640,7 @@ export class AuthService {
 
     // get the staff record
     const staffRecord = await this.getStaffRecord(type, staffId);
-
+      
     if (!staffRecord) {
       throw new ApiError(404, 'Invalid role selection');
     }
@@ -655,6 +657,7 @@ export class AuthService {
     deviceId,
     roleId: staffRecord.roleId,
     location: {
+      role: staffRecord.role?.name ?? '',
       type: type as 'RESTAURANT' | 'BRANCH' | 'ADMIN_BRANCH',
       id: getLocationId(type),
     },
@@ -664,6 +667,7 @@ export class AuthService {
   const lastSelectedRole: LastSelectedRole = {
     roleId: staffRecord.roleId,
     location: {
+      role: staffRecord.role?.name ?? '',
       type: type as 'RESTAURANT' | 'BRANCH',
       id: getLocationId(type),
     }
@@ -694,6 +698,7 @@ export class AuthService {
     // Generate tokens
     const payload = {
       tenantId: tenantId,
+      restaurantId: staffRecord.restaurantId,
       userId,
       ...lastSelectedRole,
       deviceId
@@ -778,10 +783,17 @@ export class AuthService {
         where: { id: staffId },
         include: {
           role: true,
-          branch: true
+          branch: {
+            include: {
+              restaurant: true
+            }
+          }
         }
-      });
-      return staff;
+      }) as BranchStaffRecord;
+      return {
+        ...staff,
+        restaurantId: staff?.branch.restaurant.id ?? ''
+      } as BranchStaffRecord;
     }else if(type === 'ADMIN_BRANCH'){
       const branch = await prisma.restaurantStaff.findUnique({
         where: { id: staffId },

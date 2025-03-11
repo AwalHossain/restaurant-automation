@@ -1,8 +1,8 @@
-import { Role } from '@prisma/client';
 import { Router } from 'express';
-import { RestaurantPermissionNames } from '../../../../../types/permission.types';
+import { RestaurantPermissionNames, RRole } from '../../../../../types/permission.types';
 import auth from '../../../../middlewares/auth/auth-middleware';
 import { accessControl } from '../../../../middlewares/auth/permission-middleware';
+import publicTenantContext from '../../../../middlewares/auth/public-tenant-context.middleware';
 import tenantContextMiddleware from '../../../../middlewares/auth/tenant-context.middleware';
 import { AuthController } from '../controllers/auth.controller';
 
@@ -28,7 +28,7 @@ router.post('/staff/register',
     auth(),
     tenantContextMiddleware(),
     accessControl({
-        allowedRoles: [Role.SUPER_ADMIN, Role.ADMIN],
+        allowedRoles: [RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
         staffPermissions: [
             RestaurantPermissionNames.MANAGE_RESTAURANT_USERS
         ]
@@ -36,7 +36,7 @@ router.post('/staff/register',
 
 
 router.post('/staff/login',
-    tenantContextMiddleware(),
+    publicTenantContext(),
     controller.unifiedLogin);
 
 // auth.routes.ts

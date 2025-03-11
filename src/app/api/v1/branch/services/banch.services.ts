@@ -45,7 +45,7 @@ console.log(validatedData, "validatedData");
             }
           },
           // business hours
-          BusinessHours: {
+          businessHours: {
             create: validatedData?.businessHours?.map(h =>
               {
                 const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
@@ -82,7 +82,7 @@ console.log(validatedData, "validatedData");
          }
         },
         include: {
-          BusinessHours: true,
+          businessHours: true,
           branchDeliverySettings: true,
           managers: true
         }
@@ -116,7 +116,7 @@ console.log(validatedData, "validatedData");
     const branch = await prisma.branch.findUnique({
       where: { id },
       include: {
-        BusinessHours: true,
+        businessHours: true,
         branchDeliverySettings: true,
         managers: true,
         branchStaff: true,
@@ -330,7 +330,7 @@ console.log(validatedData, "validatedData");
   async getAllBranch() {
     return await prisma.branch.findMany({
       include: {
-        BusinessHours: true,
+        businessHours: true,
         branchDeliverySettings: true,
         managers: true,
       }

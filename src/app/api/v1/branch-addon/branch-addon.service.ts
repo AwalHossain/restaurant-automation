@@ -26,9 +26,13 @@ export class BranchAddonService {
         allergens: input.allergens,
         nutritionInfo: input.nutritionInfo,
         branchId: input.branchId,
-        isActive: input.isActive
+        isActive: input.isActive,
+        createdById: input.createdById as string,
+        updatedById: input.updatedById as string
       },
     });
+
+
 
     return addon;
   }
@@ -42,8 +46,9 @@ export class BranchAddonService {
         return tx.branchFoodAddon.createMany({
           data: {
            tenantId: tenantId,
+           branchId:branchId,
            branchFoodId:branchFoodId,
-           branchAddonId:addon.branchAddonId,
+           branchAddonId:addon.branchAddonId as string,
            // branchAddonId:addon.branchAddonId || "",
            maxSelections: addon.maxSelections || 1,
            isRequired: addon.isRequired || false,
@@ -73,54 +78,65 @@ export class BranchAddonService {
     return addons;
   }
 
-  async getAllBranchFoodAddons(tenantId:string) {
-    const foodAddons = await prisma.foodAddon.findMany({
+  async getAllBranchFoodAddons(tenantId:string, branchId:string) {
+    const foodAddons = await prisma.branchFoodAddon.findMany({
       where:{
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
       },
       include:{
         addon:true,
-        food:true
+        branchFood:true
       }
+
+
     });
     console.log(foodAddons, "all food addons");
     
     return foodAddons;
   }
 
-  async getActiveBranchAddOns(tenantId:string) {
-    const addons = await prisma.addon.findMany({
+  async getActiveBranchAddOns(tenantId:string, branchId:string) {
+    const addons = await prisma.branchAddon.findMany({
       where:{
         isActive:true,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
       }
     });
+
+    if(!addons) throw new ApiError(404, "No active addons found");
+
     return addons;
+
   }
   
-  async getActiveBranchFoodAddons(tenantId:string) {
-    const foodAddons = await prisma.foodAddon.findMany({
+  async getActiveBranchFoodAddons(tenantId:string, branchId:string) {
+    const foodAddons = await prisma.branchFoodAddon.findMany({
       where:{
         isActive:true,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
       }
     });
     return foodAddons;
   }
 
 
-  async updateBranchAddOn( input: UpdateBranchAddonInput,tenantId:string) {
+  async updateBranchAddOn( input: UpdateBranchAddonInput,tenantId:string, branchId:string) {
     const {id} = input;
     await this.branchAddonValidationService.validateUpdateBranchAddonInput(input);
 
 
-    const addon = await prisma.addon.update({
+    const addon = await prisma.branchAddon.update({
       where: { id,
         isActive:true,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
        },
       data: input
     });
+
     return addon;
   }
 
@@ -136,21 +152,25 @@ export class BranchAddonService {
   }
 
   // toggle add on active status
-  async toggleBranchAddOnActiveStatus(id: string,tenantId:string) {
+  async toggleBranchAddOnActiveStatus(id: string,tenantId:string, branchId:string) {
 
     // check the addon first 
-    const addon = await prisma.addon.findUnique({
+    const addon = await prisma.branchAddon.findUnique({
       where: { 
         id,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
        }
     });
+
     if(!addon) throw new ApiError(404, "Addon not found");
 
-    const updatedAddon = await prisma.addon.update({
+    const updatedAddon = await prisma.branchAddon.update({
       where: { 
         id,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
+
        },
       data: { isActive:{
         set: !addon.isActive
@@ -160,48 +180,60 @@ export class BranchAddonService {
   }
 
   // delete add on
-  async deleteBranchFoodAddon(foodId:string,addonId:string,tenantId:string){
-    const foodAddon = await prisma.foodAddon.delete({
+  async deleteBranchFoodAddon(foodAddonId:string,tenantId:string, branchId:string){
+    const foodAddon = await prisma.branchFoodAddon.delete({
       where: {
-       foodId_addonId:{
-        foodId,
-        addonId
-       },
-       tenantId:tenantId
+        id:foodAddonId,
+        tenantId,
+        branchId
       }
     });
     console.log(foodAddon, "foodAddon");
     return foodAddon;
   }
 
+
   // update food addon
-  async updateBranchFoodAddon(input:UpdateBranchFoodAddonInput,tenantId:string){
-    const {branchFoodId,addonId,branchAddonId} = input;
+  async updateBranchFoodAddon(input:UpdateBranchFoodAddonInput, foodAddonId:string, tenantId:string, branchId:string){
+
 
     const foodAddon = await prisma.branchFoodAddon.update({
       where: {
-        tenantId_branchFoodId_addonId:{
-          tenantId,
-          branchFoodId,
-          addonId,
-          // branchAddonId
-        },
+        id:foodAddonId,
+        tenantId,
+        branchId
+
       },
+
+
       data: input
+
+
     });
+
     return foodAddon;
   }
 
   // get food addons
-  async getBranchFoodAddons(branchFoodId:string,tenantId:string){
+  async getBranchFoodAddons(branchFoodId:string,tenantId:string, branchId:string){
     const foodAddons = await prisma.branchFoodAddon.findMany({
       where: { 
         branchFoodId,
-        tenantId:tenantId
+        tenantId:tenantId,
+        branchId:branchId
        },
        include:{
-        addon:true
+        branchAddon:{
+          select:{
+            name:true,
+            price:true,
+            description:true,
+            category:true,
+            imageUrl:true,
+          }
+        }
        },
+
        orderBy:{
         displayOrder: "asc"
        }
@@ -209,31 +241,30 @@ export class BranchAddonService {
     return foodAddons;
   }
 
-  async toogleBranchFoodAddonActiveStatus(branchFoodId:string,addonId:string,tenantId:string, branchAddonId:string){
+  async toogleBranchFoodAddonActiveStatus(foodAddonId:string,tenantId:string, branchId:string){
     const foodAddon = await prisma.branchFoodAddon.findUnique({
       where: {
-        tenantId_branchFoodId_addonId: {
-          tenantId,
-          branchFoodId,
-          addonId,
-          // branchAddonId
-        }
+        id:foodAddonId,
+
+        tenantId,
+        branchId
       }
+
     });
 
     if(!foodAddon) throw new ApiError(404, "Food addon not found");
 
     const updatedFoodAddon = await prisma.branchFoodAddon.update({
       where:{
-        tenantId_branchFoodId_addonId: {
-          tenantId,
-          branchFoodId,
-          addonId,
-          // branchAddonId
+        id:foodAddonId,
+        tenantId,
+        branchId
+
         },
-      },
       data:{isActive:{set:!foodAddon.isActive}}
-    })
+    });
+
+
     return updatedFoodAddon;
   }
 

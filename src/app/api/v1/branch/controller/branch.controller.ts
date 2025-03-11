@@ -63,7 +63,7 @@ export class BranchController {
 
     updateBranchDeliverySettings = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
-      const branchId = req.params.branchId;
+      const branchId = req.tenantContext?.branchId;
       const tenantId = req.tenantContext?.tenantId;
       const {body} = req;
       if(!userId){
@@ -93,11 +93,15 @@ export class BranchController {
         throw new ApiError(400, 'User not found');
       }
 
+      console.log(req.body, 'req.body');
+      
+
       const inputData = {
         branchId: branchId as string,
         restaurantId: restaurantId as string,
         businessHours: req.body.businessHours,
         userId: userId,
+
         tenantId: tenantId as string,
         ipAddress: req.ip || '',
         userAgent: req.headers['user-agent'] || ''
@@ -124,7 +128,9 @@ export class BranchController {
     })
 
     getBranchById = catchAsync(async (req: Request, res: Response) => {
-      const result = await this.branchService.getBranchById(req.params.branchId);
+      const branchId = req.tenantContext?.branchId;
+
+      const result = await this.branchService.getBranchById(branchId as string);
 
       sendResponse(res, {
         statusCode: httpStatus.OK,
@@ -132,19 +138,23 @@ export class BranchController {
         message: "Branch fetched successfully",
         data: result
       })
+
     })
 
     updateBranchStatus = catchAsync(async (req: Request, res: Response) => {
       const userId = req.user?.userId;
+      const branchId = req.tenantContext?.branchId;
       if (!userId) {
         throw new ApiError(400, 'User not found');
+
       }
 
       const inputData = {
-        branchId: req.params.branchId,
+        branchId: branchId as string,
         userId: userId,
         req: req
       }
+
       const result = await this.branchService.updateBranchStatus(inputData);
 
       sendResponse(res, {

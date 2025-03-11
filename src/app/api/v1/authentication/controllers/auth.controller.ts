@@ -100,8 +100,10 @@ export class AuthController {
 
    // Admin registration (username/password based)
    staffRegister = catchAsync(async (req: Request, res: Response) => {
-    const {username, password, phone, role} = req.body;
+    const {roleId, branchId} = req.body;
+    const credentials = this.buildUnifiedCredentials(req);
     const context = req.tenantContext;
+    
     if(!context?.tenantId ){
       throw new ApiError(400, "Tenant context is required");
     }
@@ -110,55 +112,46 @@ export class AuthController {
     if(!tenantId && !restaurantId){
       throw new ApiError(400, "Tenant and restaurant context is required");
     }
-    const data = {username, password, phone, role, tenantId, restaurantId: restaurantId!}
+    const data = {
+      identifier: credentials.identifier,
+      password: credentials.password,
+      type: credentials.type,
+      branchId: branchId,
+      roleId,
+      tenantId,
+      restaurantId: restaurantId!
+    }
     // const role = req.user?.role;
-    const { user, accessToken, refreshToken } = await this.authService.staffRegister(data);
+    const user = await this.authService.staffRegister(data);
 
-    // ... existing cookie setting code ...
-  // Set cookies
-  res.cookie('access_token', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 1 * 24 * 60 * 60 * 1000 // 1 day
-  });
-
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
 
 
     sendResponse(res, {
       statusCode: httpStatus.CREATED,
       success: true,
       message: "Admin registered successfully",
-      data: {
-        ...user,
-        accessToken,
-        refreshToken
-      },
+      data: user
     });
   });
 
-  superAdminRegister = catchAsync(async (req: Request, res: Response) => {
-    const {username, password, email, phone, role} = req.body;
-    const { user, accessToken, refreshToken } = await this.authService.superAdminRegister({username, password, email, phone, role});
+  // superAdminRegister = catchAsync(async (req: Request, res: Response) => {
+  //   const {username, password, email, phone, role} = req.body;
+  //   const { user, accessToken, refreshToken } = await this.authService.superAdminRegister({username, password, email, phone, role});
   
-    sendResponse(res, {
-      statusCode: httpStatus.CREATED,
-      success: true,
-      message: "Super Admin registered successfully",
-      data: {
-        ...user,
-        accessToken,
-        refreshToken
-      },
-    });
-  });
+  //   sendResponse(res, {
+  //     statusCode: httpStatus.CREATED,
+  //     success: true,
+  //     message: "Super Admin registered successfully",
+  //     data: {
+  //       ...user,
+  //       accessToken,
+  //       refreshToken
+  //     },
+  //   });
+  // });
   adminRegister = catchAsync(async (req: Request, res: Response) => {
-    const {username, password, email, phone, role} = req.body;
-    const { user, accessToken, refreshToken } = await this.authService.adminRegister({username, password, email, phone, role});
+    const {username, password, email, phone} = req.body;
+    const { user, accessToken, refreshToken } = await this.authService.adminRegister({username, password, email, phone});
   
     sendResponse(res, {
       statusCode: httpStatus.CREATED,
@@ -172,89 +165,161 @@ export class AuthController {
     });
   });
 
-   // Admin login
-   staffLogin = catchAsync(async (req: Request, res: Response) => {
-    console.log(req.body, "req.body");
-    // const validRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.MODERATOR, Role.STAFF, Role.RIDER, Role.DELIVERY_BOY]
-    // if(!validRoles.includes(req.body.role)) {
-    //   throw new ApiError(400, "Invalid role");
-    // }
-    const {username, password} = req.body;
-    const context = req.tenantContext;
-    if(!context?.tenantId ){
-      throw new ApiError(400, "Tenant context is required");
-    }
-    const tenantId = context.tenantId;
-    const restaurantId = context.restaurantId;
-    if(!tenantId && !restaurantId){
-      throw new ApiError(400, "Tenant and restaurant context is required");
-    }
-    const data = {username, password,tenantId: tenantId!, restaurantId: restaurantId!}
-    const { user, accessToken, refreshToken } = await this.authService.staffLogin(data);
+  //  // Admin login
+   unifiedLogin = catchAsync(async (req: Request, res: Response) => {
+    const credentials = this.buildUnifiedCredentials(req);
+    const { ...rest} = await this.authService.unifiedLogin(credentials);
 
     // ... existing cookie setting code ...
   // Set cookies
-  res.cookie('access_token', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 15 * 60 * 1000 // 15 minutes
-  });
-
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
-
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "Admin logged in successfully",
+      message: "logged in successfully",
       data: {
-        ...user,
-        accessToken,
-        refreshToken
+        ...rest,
       },
     });
   });
 
-superAdminLogin = catchAsync(async (req: Request, res: Response) => {
-    const {email, password} = req.body;
-
-    const data = {email, password}
-    const { user, accessToken, refreshToken } = await this.authService.adminLogin(data);
+  getUserContext = catchAsync(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const tenantId = req.tenantContext?.tenantId;
+    if(!userId || !tenantId){
+      throw new ApiError(400, `${userId ? "UserID" : "Tenant ID"} is required`);
+    }
+    const context = await this.authService.getUserContext(userId, tenantId);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "User context fetched successfully",
+      data: context
+    });
+  });
   
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: "Super Admin logged in successfully",
-      data: {
-        ...user,
-        accessToken,
-        refreshToken
-      },
-    });
-  });
 
-adminLogin = catchAsync(async (req: Request, res: Response) => {
-    const {email, password} = req.body;
+// superAdminLogin = catchAsync(async (req: Request, res: Response) => {
+//     const {email, password} = req.body;
 
-    const data = {email, password}
-    const { user, accessToken, refreshToken } = await this.authService.adminLogin(data);
+//     const data = {email, password}
+//     const { user, accessToken, refreshToken } = await this.authService.adminLogin(data);
   
+//     sendResponse(res, {
+//       statusCode: httpStatus.OK,
+//       success: true,
+//       message: "Super Admin logged in successfully",
+//       data: {
+//         ...user,
+//         accessToken,
+//         refreshToken
+//       },
+//     });
+//   });
+
+// adminLogin = catchAsync(async (req: Request, res: Response) => {
+//   const credentials = this.buildUnifiedCredentials(req);
+//     const { user, accessToken, refreshToken } = await this.authService.unifiedLogin(credentials);
+  
+//     sendResponse(res, {
+//       statusCode: httpStatus.OK,
+//       success: true,
+//       message: "Super Admin logged in successfully",
+//       data: {
+//         ...user,
+//         accessToken,
+//         refreshToken
+//       },
+//     });
+//   });
+
+
+
+
+  selectRole = catchAsync(async (req: Request, res: Response) => {
+    const roleOption = req.headers['role-option'] as string;
+    const userId = req.user?.userId;
+    const deviceId = req.headers['device-id'] as string;
+    const tenantId = req.tenantContext?.tenantId;
+
+    console.log(userId, deviceId, tenantId, roleOption, "userId, deviceId, tenantId, roleOption");
+    if (!userId || !deviceId || !tenantId) {
+      throw new ApiError(400, "Missing required information");
+    }
+
+    const result = await this.authService.selectRole(
+      userId,
+      tenantId,
+      roleOption,
+      deviceId
+    );
+
+    // Set new tokens
+    res.cookie('access_token', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000
+    });
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "Super Admin logged in successfully",
-      data: {
-        ...user,
-        accessToken,
-        refreshToken
-      },
+      message: "Role selected successfully",
+      data: result
     });
   });
 
+  switchRole = catchAsync(async (req: Request, res: Response) => {
+    const roleOption = req.headers['role-option'] as string;
+    const userId = req.user?.userId;
+    const deviceId = req.headers['device-id'] as string;
+    const tenantId = req.tenantContext?.tenantId;
 
+    console.log(userId, deviceId, tenantId, "userId, deviceId, tenantId, roleOption");
 
+    if (!userId || !deviceId || !tenantId) {
+      throw new ApiError(400, "Missing required information");
+    }
+
+    const result = await this.authService.switchRole(
+      userId,
+      tenantId,
+      roleOption,
+      deviceId
+    );
+
+    // Set new tokens
+    res.cookie('access_token', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000
+    });
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Role switched successfully",
+      data: result
+    });
+  });
+
+  private determineCredentialType(body: any): 'EMAIL' | 'USERNAME' | 'PHONE' {
+    if (body.email) return 'EMAIL';
+    if (body.phone) return 'PHONE';
+    return 'USERNAME';
+  }
+  private buildUnifiedCredentials(req: Request) {
+    const { email, phone, username, password } = req.body;
+    const tenantId = req.tenantContext?.tenantId as string;
+    
+    const type = this.determineCredentialType(req.body);
+    const identifier = email || phone || username;
+
+    return {
+      identifier,
+      password,
+      tenantId,
+      type
+    };
+  }
 
 }

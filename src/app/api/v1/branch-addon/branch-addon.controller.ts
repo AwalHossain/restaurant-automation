@@ -90,6 +90,7 @@ export class BranchAddonController {
 
   updateBranchAddOn = catchAsync(async (req: Request, res: Response) => {
     const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
@@ -99,15 +100,17 @@ export class BranchAddonController {
 
     
     // Initialize update data
+    // TODO: Add updatedById to the update data 
     let updateData: any = {
       id,
       updatedById: userId,
+      createdById: userId,
       ...body
     };
 
 
 
-    const result = await this.branchAddonService.updateBranchAddOn(updateData,tenantId);
+    const result = await this.branchAddonService.updateBranchAddOn(updateData,tenantId, branchId as string);
     
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -119,31 +122,33 @@ export class BranchAddonController {
   // update food addon
   updateBranchFoodAddon = catchAsync(async (req: Request, res: Response) => {
     const data = req.body;
-    const {foodId,addonId} = req.params;
+    const {foodAddonId} = req.params;
     const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    console.log(data, "data", foodId, addonId);
-    const result = await this.branchAddonService.updateBranchFoodAddon({...data,foodId,addonId},tenantId);
+    const result = await this.branchAddonService.updateBranchFoodAddon({...data},foodAddonId,tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
       message: "Food addon updated successfully",
       data: result
     });
+
   });
 
 
 
   deleteBranchFoodAddon = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantContext?.tenantId;
-    if(!tenantId){
-      throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
-    }
-    const { foodId, addonId } = req.params;
-    if(!foodId || !addonId) throw new ApiError(400, "Food id and addon id is required");
-    const result = await this.branchAddonService.deleteBranchFoodAddon(foodId, addonId,tenantId);
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
+
+
+    const { foodAddonId } = req.params;
+    if(!foodAddonId) throw new ApiError(400, "Food addon id is required");
+    const result = await this.branchAddonService.deleteBranchFoodAddon(foodAddonId,tenantId, branchId as string);
+
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -155,10 +160,11 @@ export class BranchAddonController {
 
   getAllBranchFoodAddons = catchAsync(async (req: Request, res: Response) => {
     const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.getAllBranchFoodAddons(tenantId);
+    const result = await this.branchAddonService.getAllBranchFoodAddons(tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -168,11 +174,13 @@ export class BranchAddonController {
   });
 
   getActiveBranchFoodAddons = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantContext?.tenantId;
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.getActiveBranchFoodAddons(tenantId);
+    const result = await this.branchAddonService.getActiveBranchFoodAddons(tenantId, branchId);
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -183,10 +191,11 @@ export class BranchAddonController {
 
   getActiveBranchAddOns = catchAsync(async (req: Request, res: Response) => {
     const tenantId = req.tenantContext?.tenantId;
+    const branchId = req.tenantContext?.branchId;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.getActiveBranchAddOns(tenantId);
+    const result = await this.branchAddonService.getActiveBranchAddOns(tenantId, branchId as string);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -198,11 +207,13 @@ export class BranchAddonController {
   // get food addons
   getBranchFoodAddonsByFoodId = catchAsync(async (req: Request, res: Response) => {
     const { foodId } = req.params;
-    const tenantId = req.tenantContext?.tenantId;
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.getBranchFoodAddons(foodId,tenantId);
+    const result = await this.branchAddonService.getBranchFoodAddons(foodId,tenantId, branchId);
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -214,11 +225,13 @@ export class BranchAddonController {
   // toggle addon
   toggleBranchAddOn = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const tenantId = req.tenantContext?.tenantId;
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
     if(!tenantId){
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.toggleBranchAddOnActiveStatus(id,tenantId);
+    const result = await this.branchAddonService.toggleBranchAddOnActiveStatus(id,tenantId, branchId);
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -229,14 +242,18 @@ export class BranchAddonController {
 
   // toggle food addon
   toggleBranchFoodAddOn = catchAsync(async (req: Request, res: Response) => {
-    const { foodId, addonId, branchAddonId } = req.params;
-    const tenantId = req.tenantContext?.tenantId;
+    const { foodAddonId } = req.params;
+    const tenantId = req.tenantContext?.tenantId as string;
+    const branchId = req.tenantContext?.branchId as string;
+
     if(!tenantId){
+
       throw new ApiError(httpStatus.UNAUTHORIZED, "Tenant not found");
     }
-    const result = await this.branchAddonService.toogleBranchFoodAddonActiveStatus(foodId, addonId,tenantId, branchAddonId);
+    const result = await this.branchAddonService.toogleBranchFoodAddonActiveStatus(foodAddonId,tenantId, branchId);
     sendResponse(res, {
       statusCode: httpStatus.OK,
+
       success: true,
       message: "Food addon toggled successfully",
       data: result

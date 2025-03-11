@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { ENUM_USER_ROLE } from "../../../../enums/user";
-import { branchAuth } from "../../../middlewares/auth";
+import { BranchPermissionNames as BPN, RestaurantPermissionNames as RPN, RRole } from "../../../../types/permission.types";
+import auth from "../../../middlewares/auth/auth-middleware";
 import branchTenantContextMiddleware from "../../../middlewares/auth/branch-tenantContext-middleware";
+import { accessControl } from "../../../middlewares/auth/permission-middleware";
 import { BranchAddonController } from "./branch-addon.controller";
 
 const router = Router();
@@ -9,49 +10,78 @@ const router = Router();
 const branchAddonController = new BranchAddonController();
 
 // Standalone Addon Routes
+
 router
   .route('/')
   .post(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.createBranchAddon
   )
   .get(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.getBranchAddOns
   );
 
 
 // active addons
 router.get('/active',
-  branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchAddonController.getActiveBranchAddOns);
 
 // Get all food-addon relationships
 router.get('/food-addons', 
-  branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchAddonController.getAllBranchFoodAddons);
 
   
 // Get active food-addon relationships
 router.get('/food-addons/active', 
-  branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchAddonController.getActiveBranchFoodAddons);
 
 
 router
   .route('/:id')
   .get(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.getBranchAddOnById)
   .patch(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.updateBranchAddOn
   )
   // .delete(
@@ -66,8 +96,12 @@ router
 // Status toggle for standalone addon
 router.patch(
   '/:id/toggle',
-  branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchAddonController.toggleBranchAddOn
 );
 
@@ -75,33 +109,53 @@ router.patch(
 router
   .route('/food/:foodId/addons')
   .post(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.createBulkBranchFoodAddons
   )
   .get(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.getBranchFoodAddonsByFoodId);
 
 router
-  .route('/food/:foodId/addon/:addonId')
+  .route('/food-addon/:foodAddonId')
   .patch(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.updateBranchFoodAddon
   )
   .delete(
-    branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+    auth(),
     branchTenantContextMiddleware(),
+    accessControl({
+      allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+      staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+    }),
     branchAddonController.deleteBranchFoodAddon
   );
 
 // Status toggle for food-addon relationship
 router.patch(
-  '/food/:foodId/addon/:addonId/toggle',
-  branchAuth([ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN]),
+  '/food-addon/:foodAddonId/toggle',
+  auth(),
   branchTenantContextMiddleware(),
+  accessControl({
+    allowedRoles:[RRole.RESTAURANT_ADMIN, RRole.BRANCH_MANAGER],
+    staffPermissions:[BPN.MANAGE_BRANCH_ADDON, RPN.MANAGE_RESTAURANT_BRANCHES]
+  }),
   branchAddonController.toggleBranchFoodAddOn
 );
 
